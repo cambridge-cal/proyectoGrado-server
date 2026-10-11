@@ -23,7 +23,7 @@ API REST del Sistema CAL, el software de generación automática de horarios con
    npm install
    ```
 
-2. Crea tu archivo de variables de entorno a partir del ejemplo y completa al menos `DB_PASSWORD`:
+2. Crea tu archivo de variables de entorno a partir del ejemplo:
 
    ```bash
    cp .env.example .env
@@ -31,19 +31,37 @@ API REST del Sistema CAL, el software de generación automática de horarios con
 
    En PowerShell: `Copy-Item .env.example .env`
 
+   Completa como mínimo `DB_PASSWORD`, `JWT_SECRET`, `JWT_REFRESH_SECRET` y `SEMILLA_CONTRASENA`. Los dos secretos JWT deben ser distintos y tener al menos 32 caracteres; genera cada uno con:
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+   ```
+
 3. Levanta PostgreSQL en Docker:
 
    ```bash
    docker compose up -d
    ```
 
-4. Inicia el servidor:
+4. Crea los usuarios de prueba (administrador, docente y estudiante, todos con la contraseña `SEMILLA_CONTRASENA`):
+
+   ```bash
+   npm run semilla
+   ```
+
+   | Rol | Email |
+   |---|---|
+   | Administrador | admin@cambridge.edu.co |
+   | Docente | docente@cambridge.edu.co |
+   | Estudiante | estudiante@cambridge.edu.co |
+
+5. Inicia el servidor:
 
    ```bash
    npm run start:dev
    ```
 
-5. Verifica:
+6. Verifica:
    - Estado del servidor: <http://localhost:3000/api/salud>
    - Documentación Swagger: <http://localhost:3000/api/docs>
 
@@ -68,6 +86,7 @@ docs/diagramas/      Código fuente de las 17 figuras de la tesis
 |---|---|
 | `npm run start:dev` | Servidor en modo desarrollo con recarga automática |
 | `npm run build` | Compila a `dist/` |
+| `npm run semilla` | Crea los usuarios de prueba (solo en desarrollo) |
 | `npm run test` | Pruebas unitarias |
 | `npm run test:cov` | Pruebas con cobertura |
 | `npm run test:e2e` | Pruebas de extremo a extremo (requieren la base de datos) |
