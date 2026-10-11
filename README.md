@@ -17,9 +17,49 @@ API REST del Sistema CAL, el software de generación automática de horarios con
 
 ## Puesta en marcha
 
-```bash
-npm install
-npm run start:dev
+1. Instala las dependencias:
+
+   ```bash
+   npm install
+   ```
+
+2. Crea tu archivo de variables de entorno a partir del ejemplo y completa al menos `DB_PASSWORD`:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   En PowerShell: `Copy-Item .env.example .env`
+
+3. Levanta PostgreSQL en Docker:
+
+   ```bash
+   docker compose up -d
+   ```
+
+4. Inicia el servidor:
+
+   ```bash
+   npm run start:dev
+   ```
+
+5. Verifica:
+   - Estado del servidor: <http://localhost:3000/api/salud>
+   - Documentación Swagger: <http://localhost:3000/api/docs>
+
+En desarrollo (`NODE_ENV=development`) TypeORM sincroniza el esquema automáticamente. En producción la sincronización está desactivada.
+
+## Estructura
+
+```
+src/
+├── configuracion/   Validación de variables de entorno
+├── seguridad/       Autenticación JWT, roles y auditoría (RF-01 a RF-08)
+├── horarios/        Datos académicos, motor de IA e inscripción (RF-09 a RF-27)
+├── evaluacion/      Formularios, evaluaciones, KDD y alertas (RF-28 a RF-44)
+├── app.module.ts
+└── main.ts
+docs/diagramas/      Código fuente de las 17 figuras de la tesis
 ```
 
 ## Scripts
@@ -30,6 +70,7 @@ npm run start:dev
 | `npm run build` | Compila a `dist/` |
 | `npm run test` | Pruebas unitarias |
 | `npm run test:cov` | Pruebas con cobertura |
+| `npm run test:e2e` | Pruebas de extremo a extremo (requieren la base de datos) |
 | `npm run lint` | Análisis estático |
 
 ## Documentación
