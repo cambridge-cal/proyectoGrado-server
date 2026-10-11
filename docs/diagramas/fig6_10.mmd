@@ -1,0 +1,62 @@
+erDiagram
+    PERIODOACADEMICO ||--o{ FORMULARIO : "define"
+    FORMULARIO ||--o{ DIMENSION : "contiene"
+    DIMENSION ||--o{ PREGUNTA : "agrupa"
+    FORMULARIO ||--o{ EVALUACION : "origina"
+    DOCENTE ||--o{ EVALUACION : "recibe"
+    EVALUACION ||--o{ RESPUESTA : "contiene"
+    PREGUNTA ||--o{ RESPUESTA : "responde"
+    EVALUACION ||--o| RESULTADOKDD : "genera"
+    DOCENTE ||--o{ ALERTA : "recibe"
+    PERIODOACADEMICO ||--o{ ALERTA : "enmarca"
+    RESULTADOKDD |o--o{ ALERTA : "dispara"
+    FORMULARIO {
+        uuid id PK
+        uuid periodoAcademico_id FK
+        string titulo
+        string descripcion
+        boolean activo
+    }
+    DIMENSION {
+        uuid id PK
+        uuid formulario_id FK
+        string nombre
+        float peso
+    }
+    PREGUNTA {
+        uuid id PK
+        uuid dimension_id FK
+        string texto
+        string tipo "ESCALA, OPCION_MULTIPLE o TEXTO"
+    }
+    EVALUACION {
+        uuid id PK
+        uuid formulario_id FK
+        uuid docente_id FK
+        string estado
+        uuid_array estudiantesCompletaron
+        string_array comentariosAnonimos
+    }
+    RESPUESTA {
+        uuid id PK
+        uuid evaluacion_id FK
+        uuid pregunta_id FK
+        float valorNumerico "escala 1 a 5"
+        string texto
+    }
+    RESULTADOKDD {
+        uuid id PK
+        uuid evaluacion_id FK "único"
+        float puntajeGlobal
+        jsonb puntajesPorDimension
+        datetime calculadoEn
+    }
+    ALERTA {
+        uuid id PK
+        uuid docente_id FK
+        uuid periodoAcademico_id FK
+        uuid resultadoKDD_id FK "nulo si tipo = INFO"
+        string tipo "CRITICO, ADVERTENCIA o INFO"
+        string mensaje
+        boolean leida
+    }

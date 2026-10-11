@@ -1,0 +1,5 @@
+stateDiagram-v2
+    [*] --> ACTIVO : Motor IA genera el horario
+    ACTIVO --> ARCHIVADO : Administrador archiva al cerrar el periodo
+    ACTIVO --> [*] : Administrador elimina el horario activo
+    ARCHIVADO --> [*] : Administrador elimina el historial

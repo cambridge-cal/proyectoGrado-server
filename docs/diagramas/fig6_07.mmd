@@ -1,0 +1,22 @@
+sequenceDiagram
+    actor Admin as Administrador
+    participant Backend
+    participant PostgreSQL
+    participant KDD as Pipeline KDD
+    Note over Admin,KDD: Disparo automático al completarse las respuestas de un grupo, o manual (caso representado)
+    Admin->>Backend: POST /kdd/ejecutar (periodo)
+    Backend->>PostgreSQL: Seleccionar evaluaciones y respuestas del periodo
+    PostgreSQL-->>Backend: Respuestas por evaluación
+    Backend->>KDD: Procesar respuestas
+    KDD->>KDD: Preprocesar (descartar respuestas incompletas o fuera de escala)
+    KDD->>KDD: Transformar (agrupar por docente y dimensión)
+    KDD->>KDD: Calcular promedio por dimensión y puntaje global ponderado
+    KDD->>KDD: Interpretar (comparar con umbrales CRITICO y ADVERTENCIA)
+    KDD-->>Backend: ResultadoKDD y alertas propuestas
+    Backend->>PostgreSQL: Guardar ResultadoKDD
+    alt Bajo desempeño detectado
+        Backend->>PostgreSQL: Guardar Alerta
+        Backend-->>Admin: Notificar alerta de rendimiento
+    else Desempeño dentro del rango
+        Backend-->>Admin: Resultados listos para publicar
+    end

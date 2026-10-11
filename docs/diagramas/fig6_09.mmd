@@ -1,0 +1,44 @@
+erDiagram
+    DOCENTE ||--o{ DISPONIBILIDAD : "declara"
+    FRANJAHORARIA ||--o{ DISPONIBILIDAD : "corresponde a"
+    PERIODOACADEMICO ||--o{ HORARIO : "agrupa"
+    GRUPO }o..o{ HORARIO : "programado en (asignaciones)"
+    DOCENTE }o..o{ HORARIO : "asignado en (asignaciones)"
+    AULA }o..o{ HORARIO : "usada en (asignaciones)"
+    FRANJAHORARIA }o..o{ HORARIO : "usada en (asignaciones)"
+    AULA {
+        uuid id PK
+        string codigo UK
+        int capacidad
+        string tipo "SALON, LAB o VIRTUAL"
+        boolean activa
+    }
+    FRANJAHORARIA {
+        uuid id PK
+        string diaSemana
+        time horaInicio
+        time horaFin
+        int bloque
+    }
+    DISPONIBILIDAD {
+        uuid id PK
+        uuid docente_id FK
+        uuid franjaHoraria_id FK
+    }
+    PERIODOACADEMICO {
+        uuid id PK
+        string nombre
+        date fechaInicio
+        date fechaFin
+        boolean activo
+    }
+    HORARIO {
+        uuid id PK
+        uuid periodoAcademico_id FK
+        jsonb asignaciones
+        float fitness
+        int generaciones
+        int tiempoEjecucionMs
+        boolean validadoGemini
+        boolean archivado
+    }

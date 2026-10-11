@@ -1,0 +1,22 @@
+flowchart TD
+    Start(["Administrador solicita<br/>generar horario"])
+    Cargar["Cargar grupos, docentes, aulas,<br/>franjas y disponibilidades"]
+    Ejecutar["Ejecutar Algoritmo Genético<br/>+ Búsqueda Tabú"]
+    D1{"¿Cumple las restricciones<br/>duras de RF-18?"}
+    DMax{"¿Se alcanzó el número<br/>máximo de intentos?"}
+    Ajustar["Ajustar parámetros<br/>y reintentar"]
+    Informar(["Informar al Administrador las<br/>restricciones no satisfechas"])
+    Enviar["Enviar propuesta a Gemini AI<br/>para validación semántica"]
+    D2{"¿Gemini AI responde<br/>y aprueba la propuesta?"}
+    Aplicar["Aplicar ajustes semánticos<br/>(validadoGemini = true)"]
+    Marcar["Conservar propuesta del AG + BT<br/>(validadoGemini = false)"]
+    Guardar["Guardar horario y metadatos<br/>en PostgreSQL"]
+    End(["Mostrar horario al Administrador<br/>con su estado de validación"])
+    Start --> Cargar --> Ejecutar --> D1
+    D1 -->|No| DMax
+    DMax -->|No| Ajustar --> Ejecutar
+    DMax -->|Sí| Informar
+    D1 -->|Sí| Enviar --> D2
+    D2 -->|Sí| Aplicar --> Guardar
+    D2 -->|"No, o el servicio<br/>no responde"| Marcar --> Guardar
+    Guardar --> End

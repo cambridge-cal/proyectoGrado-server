@@ -1,0 +1,33 @@
+flowchart TB
+    subgraph Client["proyectoGrado-client (React + Vite)"]
+        SPA["Interfaz SPA"]
+        Zustand["Estado global (Zustand)"]
+        TanStack["TanStack Query (cache)"]
+        Axios["Cliente Axios"]
+        SPA --> Zustand
+        SPA --> TanStack
+        SPA --> Axios
+    end
+
+    subgraph Server["proyectoGrado-server (NestJS)"]
+        API["API REST /api"]
+        Seguridad["Módulo Seguridad<br/>JWT + RBAC"]
+        Horarios["Módulo Horarios<br/>Generación IA + CRUD"]
+        Evaluacion["Módulo Evaluación<br/>Formularios + KDD"]
+        API --> Seguridad
+        API --> Horarios
+        API --> Evaluacion
+    end
+
+    subgraph Infra["Infraestructura"]
+        PG[("PostgreSQL<br/>Docker")]
+        Gemini[("Google<br/>Gemini AI")]
+        SMTP[("Servidor SMTP<br/>Gmail")]
+    end
+
+    Axios -->|"HTTP / REST"| API
+    Seguridad --> PG
+    Seguridad -->|"SMTP TLS"| SMTP
+    Horarios --> PG
+    Horarios -->|"HTTPS"| Gemini
+    Evaluacion --> PG

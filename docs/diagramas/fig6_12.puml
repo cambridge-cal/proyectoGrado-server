@@ -1,0 +1,50 @@
+@startuml
+left to right direction
+skinparam dpi 200
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F2F2F2
+  BorderColor #555555
+}
+skinparam rectangle {
+  BorderColor #555555
+}
+actor "Administrador" as Admin
+actor "Docente" as Doc
+actor "Estudiante" as Est
+actor "Usuario no\nautenticado" as Anon
+rectangle "Sistema CAL" {
+  usecase "Gestionar usuarios" as UC1
+  usecase "Configurar cursos,\ngrupos y aulas" as UC2
+  usecase "Generar horario con IA" as UC3
+  usecase "Crear formulario\nde evaluación" as UC4
+  usecase "Asignar evaluación\na docentes" as UC5
+  usecase "Ejecutar o reejecutar\npipeline KDD" as UC6
+  usecase "Ver alertas de\nrendimiento" as UC7
+  usecase "Archivar historial\nde horarios" as UC8
+  usecase "Consultar horario\npersonal" as UC9
+  usecase "Ver resultados\nde evaluación" as UC10
+  usecase "Inscribirse a grupo\ncon código" as UC11
+  usecase "Darse de baja\nde un grupo" as UC12
+  usecase "Evaluar docente" as UC13
+  usecase "Escribir comentario\nanónimo" as UC14
+  usecase "Recuperar contraseña" as UC15
+}
+Admin --> UC1
+Admin --> UC2
+Admin --> UC3
+Admin --> UC4
+Admin --> UC5
+Admin --> UC6
+Admin --> UC7
+Admin --> UC8
+Doc --> UC9
+Doc --> UC10
+Est --> UC11
+Est --> UC12
+Est --> UC13
+UC13 ..> UC14 : <<include>>
+Anon --> UC15
+@enduml

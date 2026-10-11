@@ -1,0 +1,25 @@
+sequenceDiagram
+    actor Admin as Administrador
+    participant Frontend
+    participant Backend
+    participant MotorIA as Motor IA
+    participant Gemini as Gemini AI
+    participant PostgreSQL
+    Admin->>Frontend: Generar horario
+    Frontend->>Backend: POST /horarios/generar
+    Backend->>PostgreSQL: Cargar datos del periodo activo
+    PostgreSQL-->>Backend: Grupos, docentes, aulas, franjas y disponibilidades
+    Backend->>MotorIA: Ejecutar generación
+    MotorIA-->>Backend: Horario optimizado (AG + Búsqueda Tabú)
+    Backend->>Gemini: Validar asignaciones
+    alt Gemini aprueba la propuesta
+        Gemini-->>Backend: Ajustes semánticos
+        Backend->>Backend: Aplicar ajustes (validadoGemini = true)
+    else Rechazo, error o tiempo de espera agotado
+        Gemini-->>Backend: Respuesta inválida o sin respuesta
+        Backend->>Backend: Conservar resultado AG + BT (validadoGemini = false)
+    end
+    Backend->>PostgreSQL: Guardar horario y metadatos
+    PostgreSQL-->>Backend: Horario registrado
+    Backend-->>Frontend: 201 Created
+    Frontend-->>Admin: Mostrar horario y estado de validación

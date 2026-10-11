@@ -1,0 +1,17 @@
+flowchart TB
+    Admin(["Administrador"])
+    Docente(["Docente"])
+    Estudiante(["Estudiante"])
+    Sistema["Sistema CAL"]
+    Gemini[("Gemini AI<br/>Google")]
+    SMTP[("Servidor SMTP<br/>Gmail")]
+    DB[("PostgreSQL")]
+
+    Admin -->|"Configura cursos, aulas,<br/>franjas. Genera horarios,<br/>gestiona evaluaciones"| Sistema
+    Docente -->|"Consulta horario.<br/>Ve resultados de<br/>evaluación"| Sistema
+    Estudiante -->|"Se inscribe a grupos.<br/>Evalúa docentes"| Sistema
+
+    Sistema -->|"Solicitud de<br/>validación semántica"| Gemini
+    Gemini -->|"Resultado de<br/>validación"| Sistema
+    Sistema -->|"Envío de correos<br/>recuperación de contraseña"| SMTP
+    Sistema <-->|"Lectura y escritura"| DB

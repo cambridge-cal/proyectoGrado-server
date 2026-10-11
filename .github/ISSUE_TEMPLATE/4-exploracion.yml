@@ -1,0 +1,22 @@
+name: Exploración (No Process)
+description: Investigación técnica o prototipo con timebox máximo de 2 días laborables.
+title: "TKT-XXX · "
+labels: ["exploracion"]
+body:
+  - type: textarea
+    id: pregunta
+    attributes:
+      label: Pregunta técnica a resolver
+    validations:
+      required: true
+  - type: input
+    id: timebox
+    attributes:
+      label: Fecha límite del timebox (máximo 2 días)
+    validations:
+      required: true
+  - type: textarea
+    id: hallazgos
+    attributes:
+      label: Hallazgos (completar al cerrar)
+      description: Los hallazgos aplicables se convierten en tickets de Funcionalidad.

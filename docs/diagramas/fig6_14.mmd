@@ -1,0 +1,27 @@
+flowchart TB
+    subgraph Local["Máquina local"]
+        Nav["Navegador"]
+        Vite["Vite Dev Server :5173"]
+        Nest["NestJS Server :3000"]
+        subgraph Docker["Docker Network"]
+            PG[("PostgreSQL :5432")]
+        end
+    end
+
+    subgraph GH["GitHub"]
+        RepoClient["proyectoGrado-client"]
+        RepoServer["proyectoGrado-server"]
+    end
+
+    subgraph Ext["Servicios externos"]
+        Gemini[("Google Gemini AI")]
+        SMTP[("Gmail SMTP :587")]
+    end
+
+    Nav -->|"HTTP :5173"| Vite
+    Vite -->|"HTTP REST :3000"| Nest
+    Nest -->|"TCP :5432"| PG
+    Nest -->|"HTTPS"| Gemini
+    Nest -->|"SMTP TLS :587"| SMTP
+    RepoClient -.->|"git pull"| Vite
+    RepoServer -.->|"git pull"| Nest

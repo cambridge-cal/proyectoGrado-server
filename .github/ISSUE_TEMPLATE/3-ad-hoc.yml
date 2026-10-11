@@ -1,0 +1,28 @@
+name: Incidente Ad Hoc
+description: Urgencia operativa. Se abre directamente en En Desarrollo y exige documentación retroactiva antes de cerrarse.
+title: "TKT-XXX · "
+labels: ["ad-hoc"]
+body:
+  - type: textarea
+    id: incidente
+    attributes:
+      label: Incidente
+    validations:
+      required: true
+  - type: textarea
+    id: causa
+    attributes:
+      label: Causa raíz (completar antes de cerrar)
+  - type: textarea
+    id: solucion
+    attributes:
+      label: Solución aplicada (completar antes de cerrar)
+  - type: textarea
+    id: lecciones
+    attributes:
+      label: Lecciones aprendidas (completar antes de cerrar)
+  - type: input
+    id: rama
+    attributes:
+      label: Rama de trabajo
+      placeholder: "hotfix/descripcion-corta"

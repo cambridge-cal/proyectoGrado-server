@@ -1,0 +1,40 @@
+flowchart TB
+    App["App.tsx<br/>(React Router + TanStack Query)"]
+    subgraph SeguridadM["seguridad"]
+        direction LR
+        Acceso["IniciarSesion · RecuperarContrasena<br/>RestablecerContrasena"]
+        Protected["ProtectedRoute<br/>(verifica sesión y rol)"]
+        Store["almacenAuth<br/>(Zustand)"]
+    end
+    subgraph Admin["modulos/admin"]
+        direction TB
+        Dashboard["Dashboard"]
+        Horarios["Horarios<br/>(grilla, generar, historial)"]
+        Evaluacion["Evaluacion<br/>(resultados, formularios,<br/>asignaciones, alertas)"]
+        Configuracion["Configuracion"]
+        Usuarios["Usuarios · Auditoria"]
+    end
+    subgraph DocenteM["modulos/docente"]
+        direction TB
+        HorarioDocente["HorarioDocente"]
+        DashboardDocente["DashboardDocente"]
+        DisponibilidadDocente["DisponibilidadDocente"]
+    end
+    subgraph EstudianteM["modulos/estudiante"]
+        direction TB
+        DashboardEstudiante["DashboardEstudiante"]
+        FormulariosEstudiante["FormulariosEstudiante"]
+        HorarioEstudiante["HorarioEstudiante"]
+        GruposEstudiante["GruposEstudiante"]
+    end
+    Dashboard ~~~ Horarios ~~~ Evaluacion ~~~ Configuracion ~~~ Usuarios
+    HorarioDocente ~~~ DashboardDocente ~~~ DisponibilidadDocente
+    DashboardEstudiante ~~~ FormulariosEstudiante ~~~ HorarioEstudiante ~~~ GruposEstudiante
+    API["compartido<br/>api.ts: Axios + interceptores de token<br/>ui y layouts: sistema de diseño"]
+    App --> SeguridadM
+    SeguridadM --> Admin
+    SeguridadM --> DocenteM
+    SeguridadM --> EstudianteM
+    Admin --> API
+    DocenteM --> API
+    EstudianteM --> API

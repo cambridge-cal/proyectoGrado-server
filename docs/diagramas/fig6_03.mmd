@@ -1,0 +1,22 @@
+sequenceDiagram
+    actor Usuario
+    participant Frontend
+    participant Backend
+    participant PostgreSQL
+
+    Usuario->>Frontend: Ingresa email y contraseña
+    Frontend->>Backend: POST /auth/login
+    Backend->>PostgreSQL: Busca usuario por email
+    PostgreSQL-->>Backend: Datos del usuario (hash)
+    Backend->>Backend: Compara contraseña con bcrypt
+
+    alt Credenciales válidas
+        Backend->>Backend: Genera Access Token (8h) y Refresh Token (7d)
+        Backend->>PostgreSQL: Guarda Refresh Token en tabla SESION
+        Backend-->>Frontend: 200 OK + tokens
+        Frontend->>Frontend: Guarda tokens en Zustand
+        Frontend-->>Usuario: Acceso concedido
+    else Credenciales inválidas
+        Backend-->>Frontend: 401 Unauthorized
+        Frontend-->>Usuario: Mensaje de error
+    end

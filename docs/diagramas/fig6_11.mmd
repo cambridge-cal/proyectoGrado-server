@@ -1,0 +1,53 @@
+classDiagram
+    class Usuario {
+        +uuid id
+        +string nombre
+        +string email
+        +string rol
+        +login()
+    }
+    class Docente {
+        +string especialidad
+        +int cargaMaximaSemanal
+        +consultarHorario()
+    }
+    class Estudiante {
+        +string codigo
+        +inscribirseAGrupo(codigoAcceso)
+        +darseDeBajaDeGrupo(grupoId)
+        +evaluarDocente(evaluacion)
+    }
+    class Grupo {
+        +string codigo
+        +int cupoMaximo
+        +string codigoAcceso
+    }
+    class Horario {
+        +jsonb asignaciones
+        +float fitness
+        +boolean validadoGemini
+        +boolean archivado
+        +generar()
+        +archivar()
+    }
+    class Formulario {
+        +string titulo
+        +asignarADocentes()
+    }
+    class Evaluacion {
+        +string estado
+        +uuid[] estudiantesCompletaron
+        +completar(respuestas)
+    }
+    class ResultadoKDD {
+        +float puntajeGlobal
+        +calcular()
+    }
+    Usuario <|-- Docente
+    Usuario <|-- Estudiante
+    Estudiante "0..*" --> "0..*" Grupo : se inscribe, máx. 1 activo por idioma
+    Horario "0..*" --> "1..*" Grupo : programa (asignaciones)
+    Horario "0..*" --> "1..*" Docente : asigna (asignaciones)
+    Formulario "1" --> "0..*" Evaluacion : origina
+    Docente "1" --> "0..*" Evaluacion : recibe
+    Evaluacion "1" --> "0..1" ResultadoKDD : genera

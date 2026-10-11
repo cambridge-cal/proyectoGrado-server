@@ -1,0 +1,25 @@
+# Dependencias y compilación
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Variables de entorno (nunca subir valores reales, RNF-23)
+.env
+.env.*
+!.env.example
+
+# Registros y cobertura
+logs/
+*.log
+npm-debug.log*
+coverage/
+.nyc_output/
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

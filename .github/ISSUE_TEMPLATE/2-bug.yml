@@ -1,0 +1,31 @@
+name: Corrección (Bug)
+description: Defecto identificado durante el desarrollo o las pruebas. Entra directo a Análisis con prioridad Alta.
+title: "TKT-XXX · "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: comportamiento
+    attributes:
+      label: Comportamiento observado
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Comportamiento esperado
+      description: Indica el requisito o la figura que define el comportamiento correcto.
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducir
+      value: |
+        1. 
+    validations:
+      required: true
+  - type: input
+    id: rama
+    attributes:
+      label: Rama de trabajo
+      placeholder: "fix/TKT-XXX-descripcion-corta"

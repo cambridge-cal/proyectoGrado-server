@@ -1,0 +1,23 @@
+flowchart TD
+    Start(["Administrador crea formulario<br/>con dimensiones y preguntas"])
+    Asignar["Asignar formulario a los docentes<br/>(una evaluación por docente)"]
+    Pendiente["Estudiantes ven las evaluaciones<br/>de los docentes de sus grupos"]
+    Responde["Estudiante responde<br/>de forma anónima"]
+    Guardar["Guardar respuestas y registrar al<br/>estudiante en estudiantesCompletaron"]
+    D1{"¿Todos los estudiantes del grupo<br/>completaron la evaluación?"}
+    KDD["Pipeline KDD recalcula el<br/>ResultadoKDD del docente"]
+    AdminManual(["Administrador solicita<br/>reejecución manual"])
+    D2{"¿Puntaje global bajo el<br/>umbral configurado?"}
+    Alerta["Generar alerta automática"]
+    Revisa["Administrador revisa<br/>la alerta"]
+    Publicar["Resultados disponibles en el<br/>dashboard del docente"]
+    End(["Cierre del periodo<br/>de evaluación"])
+    Start --> Asignar --> Pendiente
+    Pendiente --> Responde --> Guardar --> D1
+    D1 -->|No| Pendiente
+    D1 -->|"Sí, automático"| KDD
+    AdminManual -.->|"manual, p. ej. tras<br/>corregir un dato"| KDD
+    KDD --> D2
+    D2 -->|Sí| Alerta --> Revisa --> Publicar
+    D2 -->|No| Publicar
+    Publicar --> End

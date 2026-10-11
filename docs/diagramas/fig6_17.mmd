@@ -1,0 +1,34 @@
+flowchart TD
+    Start(["Estudiante entra al sistema"])
+    Ver["Ver mis grupos activos<br/>y opción de inscribirse"]
+    D1{"¿Qué desea hacer?"}
+
+    Ingresa["Ingresa código de<br/>acceso del grupo"]
+    Post["POST /estudiantes/:id/unirse<br/>con código"]
+    D2{"¿Código válido?"}
+    ErrorCod["Error: código incorrecto"]
+    D3{"¿Grupo con cupo<br/>disponible?"}
+    ErrorCupo["Error: grupo sin cupo"]
+    D4{"¿Ya tiene un grupo activo<br/>del mismo idioma?"}
+    ErrorIdioma["Error: ya está inscrito en<br/>un grupo de ese idioma"]
+    Crea["Crea fila en ESTUDIANTE_GRUPO<br/>(activo = true)"]
+    Acceso["Acceso al horario del grupo"]
+
+    SelecGrupo["Selecciona un grupo<br/>activo para darse de baja"]
+    Modal["Modal: escribir<br/>'confirmo darme de baja'"]
+    D5{"¿Texto correcto?"}
+    Patch["PATCH /estudiantes/:id/grupos/:grupoId<br/>activo = false"]
+    Removido["Grupo removido de<br/>sus grupos activos"]
+
+    Start --> Ver --> D1
+    D1 -->|"Inscribirse a<br/>un nuevo grupo"| Ingresa --> Post --> D2
+    D2 -->|No| ErrorCod --> Ingresa
+    D2 -->|Sí| D3
+    D3 -->|No| ErrorCupo --> Ingresa
+    D3 -->|Sí| D4
+    D4 -->|Sí| ErrorIdioma --> Ingresa
+    D4 -->|No| Crea --> Acceso
+
+    D1 -->|"Darse de baja<br/>de un grupo"| SelecGrupo --> Modal --> D5
+    D5 -->|No| Modal
+    D5 -->|Sí| Patch --> Removido

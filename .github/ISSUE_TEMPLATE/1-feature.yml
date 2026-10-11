@@ -1,0 +1,50 @@
+name: Funcionalidad (Feature)
+description: Nueva funcionalidad planificada en el backlog del proyecto.
+title: "TKT-XXX · "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Un ticket solo entra al Backlog si cumple la Definición de Listo (Tabla 3.2 de la tesis): descripción clara, criterios de aceptación verificables, prioridad, tipo y módulo.
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción
+      description: Qué funcionalidad se construye y para qué actor.
+    validations:
+      required: true
+  - type: input
+    id: requisitos
+    attributes:
+      label: Requisitos y figuras relacionadas
+      placeholder: "RF-01, RNF-05, Figura 6.3"
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      value: |
+        - [ ] 
+    validations:
+      required: true
+  - type: dropdown
+    id: prioridad
+    attributes:
+      label: Prioridad
+      options: ["Alta", "Media", "Baja"]
+    validations:
+      required: true
+  - type: dropdown
+    id: modulo
+    attributes:
+      label: Módulo
+      options: ["M0 · Transversal", "M1 · Horarios", "M2 · Evaluación", "M3 · Integración y cierre"]
+    validations:
+      required: true
+  - type: input
+    id: rama
+    attributes:
+      label: Rama de trabajo
+      placeholder: "feature/TKT-XXX-descripcion-corta"

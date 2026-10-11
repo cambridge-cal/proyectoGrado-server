@@ -1,0 +1,72 @@
+erDiagram
+    USUARIO ||--o| ESTUDIANTE : "es"
+    USUARIO ||--o| DOCENTE : "es"
+    USUARIO ||--o{ SESION : "abre"
+    USUARIO ||--o{ AUDITLOG : "registra"
+    ESTUDIANTE ||--o{ ESTUDIANTE_GRUPO : "inscribe"
+    GRUPO ||--o{ ESTUDIANTE_GRUPO : "tiene"
+    CURSO ||--o{ GRUPO : "ofrece"
+    NIVELIDIOMA ||--o{ CURSO : "clasifica"
+    USUARIO {
+        uuid id PK
+        string nombre
+        string email UK
+        string contrasenaHash
+        string rol "ADMIN, DOCENTE o ESTUDIANTE"
+        boolean activo
+    }
+    ESTUDIANTE {
+        uuid id PK
+        uuid usuario_id FK "único"
+        string codigo UK
+    }
+    DOCENTE {
+        uuid id PK
+        uuid usuario_id FK "único"
+        string especialidad
+        int cargaMaximaSemanal
+    }
+    SESION {
+        uuid id PK
+        uuid usuario_id FK
+        string refreshTokenHash
+        datetime creadaEn
+        datetime expiraEn
+    }
+    AUDITLOG {
+        uuid id PK
+        uuid usuario_id FK
+        string modulo
+        string accion
+        string detalle
+        string ip
+        datetime fechaHora
+    }
+    ESTUDIANTE_GRUPO {
+        uuid id PK
+        uuid estudiante_id FK
+        uuid grupo_id FK
+        boolean activo
+        date fechaInscripcion
+        date fechaBaja
+    }
+    GRUPO {
+        uuid id PK
+        uuid curso_id FK
+        string codigo UK
+        int cupoMaximo
+        string jornada
+        string codigoAcceso UK
+    }
+    CURSO {
+        uuid id PK
+        uuid nivelIdioma_id FK
+        string nombre
+        int intensidadHoraria
+    }
+    NIVELIDIOMA {
+        uuid id PK
+        string codigo UK "A1 a C1"
+        string nombre
+        string idioma
+    }

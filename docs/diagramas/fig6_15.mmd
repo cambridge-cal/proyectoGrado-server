@@ -1,0 +1,13 @@
+stateDiagram-v2
+    [*] --> PENDIENTE : Administrador asigna la evaluación
+    PENDIENTE --> EN_PROGRESO : Primer estudiante envía respuestas
+    EN_PROGRESO --> EN_PROGRESO : Grupo completo / KDD recalcula resultado parcial
+    EN_PROGRESO --> COMPLETADA : Respondieron todos los estudiantes de los grupos del docente
+    EN_PROGRESO --> ANALIZADA : Administrador ejecuta KDD al cierre del plazo
+    COMPLETADA --> ANALIZADA : Pipeline KDD automático
+    ANALIZADA --> ANALIZADA : Reejecución manual del KDD
+    ANALIZADA --> ALERTA : Puntaje bajo el umbral
+    ANALIZADA --> CERRADA : Resultados publicados
+    ALERTA --> CERRADA : Administrador revisa la alerta
+    CERRADA --> ARCHIVADA : Cierre del periodo
+    ARCHIVADA --> [*] : Administrador elimina la evaluación
