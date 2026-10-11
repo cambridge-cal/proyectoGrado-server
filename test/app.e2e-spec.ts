@@ -19,7 +19,10 @@ describe('Sistema (e2e)', () => {
   });
 
   it('GET /api/salud', () => {
-    return request(app.getHttpServer()).get('/api/salud').expect(200).expect({ estado: 'ok' });
+    return request(app.getHttpServer())
+      .get('/api/salud')
+      .expect(200)
+      .expect({ estado: 'ok' });
   });
 
   afterEach(async () => {

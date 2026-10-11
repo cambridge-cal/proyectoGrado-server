@@ -18,16 +18,23 @@ describe('validarEntorno', () => {
   });
 
   it('rechaza la configuración si falta una variable obligatoria', () => {
-    expect(() => validarEntorno({ ...base, DB_PASSWORD: '' })).toThrow(/DB_PASSWORD/);
+    expect(() => validarEntorno({ ...base, DB_PASSWORD: '' })).toThrow(
+      /DB_PASSWORD/,
+    );
   });
 
   it('rechaza un NODE_ENV desconocido', () => {
-    expect(() => validarEntorno({ ...base, NODE_ENV: 'staging' })).toThrow(/NODE_ENV/);
+    expect(() => validarEntorno({ ...base, NODE_ENV: 'staging' })).toThrow(
+      /NODE_ENV/,
+    );
   });
 });
 
 describe('origenesCors', () => {
   it('separa la lista por comas e ignora espacios y vacíos', () => {
-    expect(origenesCors(' http://a.com , ,http://b.com')).toEqual(['http://a.com', 'http://b.com']);
+    expect(origenesCors(' http://a.com , ,http://b.com')).toEqual([
+      'http://a.com',
+      'http://b.com',
+    ]);
   });
 });
