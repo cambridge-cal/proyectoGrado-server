@@ -7,6 +7,8 @@ const base = {
   DB_PASSWORD: 'secreto',
   DB_NAME: 'sistema_cal',
   CORS_ORIGINS: 'http://localhost:5173',
+  JWT_SECRET: 'a'.repeat(32),
+  JWT_REFRESH_SECRET: 'b'.repeat(32),
 };
 
 describe('validarEntorno', () => {
@@ -21,6 +23,15 @@ describe('validarEntorno', () => {
     expect(() => validarEntorno({ ...base, DB_PASSWORD: '' })).toThrow(
       /DB_PASSWORD/,
     );
+  });
+
+  it('exige secretos JWT de al menos 32 caracteres y distintos entre sí', () => {
+    expect(() => validarEntorno({ ...base, JWT_SECRET: 'corto' })).toThrow(
+      /JWT_SECRET/,
+    );
+    expect(() =>
+      validarEntorno({ ...base, JWT_REFRESH_SECRET: base.JWT_SECRET }),
+    ).toThrow(/distintos/);
   });
 
   it('rechaza un NODE_ENV desconocido', () => {
