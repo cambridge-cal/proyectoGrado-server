@@ -1,0 +1,148 @@
+{
+  "periodo": "2026-2",
+  "descripcion": "Horario de ejemplo que ya cumple las restricciones duras de RF-18 (sin cruces de docente, aula ni grupo, capacidad suficiente y franjas dentro de la disponibilidad). Tiene dos problemas semánticos sembrados a propósito para comprobar si Gemini los detecta.",
+  "docentes": [
+    {
+      "id": "D1",
+      "nombre": "Laura Gómez",
+      "especialidad": "Inglés",
+      "cargaMaximaSemanal": 20
+    },
+    {
+      "id": "D2",
+      "nombre": "Pierre Martin",
+      "especialidad": "Francés",
+      "cargaMaximaSemanal": 16
+    },
+    {
+      "id": "D3",
+      "nombre": "Carlos Rosero",
+      "especialidad": "Inglés",
+      "cargaMaximaSemanal": 12
+    }
+  ],
+  "aulas": [
+    {
+      "id": "A101",
+      "capacidad": 20,
+      "tipo": "SALON"
+    },
+    {
+      "id": "A102",
+      "capacidad": 25,
+      "tipo": "SALON"
+    },
+    {
+      "id": "LAB1",
+      "capacidad": 18,
+      "tipo": "LAB"
+    }
+  ],
+  "grupos": [
+    {
+      "id": "G-ING-A1-01",
+      "curso": "Inglés A1",
+      "idioma": "Inglés",
+      "nivel": "A1",
+      "jornada": "Mañana",
+      "inscritos": 18,
+      "intensidadHorariaSemanal": 4
+    },
+    {
+      "id": "G-ING-B1-01",
+      "curso": "Inglés B1",
+      "idioma": "Inglés",
+      "nivel": "B1",
+      "jornada": "Noche",
+      "inscritos": 15,
+      "intensidadHorariaSemanal": 4
+    },
+    {
+      "id": "G-FRA-A1-01",
+      "curso": "Francés A1",
+      "idioma": "Francés",
+      "nivel": "A1",
+      "jornada": "Tarde",
+      "inscritos": 12,
+      "intensidadHorariaSemanal": 4
+    },
+    {
+      "id": "G-ING-KIDS-01",
+      "curso": "Inglés Kids",
+      "idioma": "Inglés",
+      "nivel": "A1",
+      "jornada": "Tarde",
+      "inscritos": 10,
+      "intensidadHorariaSemanal": 2
+    }
+  ],
+  "asignaciones": [
+    {
+      "id": "X01",
+      "grupo": "G-ING-A1-01",
+      "docente": "D1",
+      "aula": "A101",
+      "dia": "Lunes",
+      "inicio": "08:00",
+      "fin": "10:00"
+    },
+    {
+      "id": "X02",
+      "grupo": "G-ING-A1-01",
+      "docente": "D1",
+      "aula": "A101",
+      "dia": "Miércoles",
+      "inicio": "08:00",
+      "fin": "10:00"
+    },
+    {
+      "id": "X03",
+      "grupo": "G-ING-B1-01",
+      "docente": "D3",
+      "aula": "A102",
+      "dia": "Martes",
+      "inicio": "18:00",
+      "fin": "20:00"
+    },
+    {
+      "id": "X04",
+      "grupo": "G-ING-B1-01",
+      "docente": "D3",
+      "aula": "A102",
+      "dia": "Martes",
+      "inicio": "20:00",
+      "fin": "22:00"
+    },
+    {
+      "id": "X05",
+      "grupo": "G-FRA-A1-01",
+      "docente": "D1",
+      "aula": "LAB1",
+      "dia": "Lunes",
+      "inicio": "14:00",
+      "fin": "16:00"
+    },
+    {
+      "id": "X06",
+      "grupo": "G-FRA-A1-01",
+      "docente": "D2",
+      "aula": "LAB1",
+      "dia": "Jueves",
+      "inicio": "14:00",
+      "fin": "16:00"
+    },
+    {
+      "id": "X07",
+      "grupo": "G-ING-KIDS-01",
+      "docente": "D3",
+      "aula": "A101",
+      "dia": "Viernes",
+      "inicio": "14:00",
+      "fin": "16:00"
+    }
+  ],
+  "problemasSembrados": [
+    "X05: una docente de Inglés dicta una sesión de Francés A1, aunque hay un docente de Francés disponible, y el grupo queda con dos docentes distintos en la semana.",
+    "X03 y X04: el grupo B1 recibe sus 4 horas semanales el mismo día y seguidas, en vez de repartirlas en la semana."
+  ]
+}

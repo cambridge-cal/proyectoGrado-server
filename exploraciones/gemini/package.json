@@ -1,0 +1,16 @@
+{
+  "name": "exploracion-gemini",
+  "private": true,
+  "description": "TKT-006: exploración de Gemini 3.1 Pro para la validación semántica de horarios (RNF-18)",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "prompt": "node validar-horario.mjs --solo-prompt",
+    "validar": "node --env-file=../../.env validar-horario.mjs"
+  },
+  "dependencies": {
+    "@google/genai": "^2.28.0"
+  }
+}
