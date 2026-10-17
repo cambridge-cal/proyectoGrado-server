@@ -5,6 +5,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module.js';
 import { hashRefreshToken } from '../src/seguridad/autenticacion/tokens.js';
+import { CorreoService } from '../src/seguridad/correo/correo.service.js';
 import {
   AuditLog,
   Rol,
@@ -84,6 +85,90 @@ describe('POST /api/auth/login (e2e)', () => {
       .set('Authorization', `Bearer ${respuesta.body.accessToken}`)
       .expect(200)
       .expect({ sub: usuarioId, email, rol: 'ADMIN' });
+  });
+
+  it('refresh rota el Refresh Token y logout lo invalida (RF-02, RF-03)', async () => {
+    const servidor = app.getHttpServer();
+    const login = await request(servidor)
+      .post('/api/auth/login')
+      .send({ email, contrasena })
+      .expect(200);
+    const primero = login.body.refreshToken;
+
+    const renovado = await request(servidor)
+      .post('/api/auth/refresh')
+      .send({ refreshToken: primero })
+      .expect(200);
+    expect(renovado.body.accessToken).toBeTruthy();
+    expect(renovado.body.refreshToken).not.toBe(primero);
+
+    // El token usado ya no sirve y, por seguridad, cierra las demás sesiones.
+    await request(servidor)
+      .post('/api/auth/refresh')
+      .send({ refreshToken: primero })
+      .expect(401);
+    await request(servidor)
+      .post('/api/auth/refresh')
+      .send({ refreshToken: renovado.body.refreshToken })
+      .expect(401);
+
+    const otra = await request(servidor)
+      .post('/api/auth/login')
+      .send({ email, contrasena })
+      .expect(200);
+    await request(servidor)
+      .post('/api/auth/logout')
+      .send({ refreshToken: otra.body.refreshToken })
+      .expect(204);
+    await request(servidor)
+      .post('/api/auth/refresh')
+      .send({ refreshToken: otra.body.refreshToken })
+      .expect(401);
+  });
+
+  it('recupera y restablece la contraseña con el enlace del correo (RF-04, RF-05)', async () => {
+    const servidor = app.getHttpServer();
+    const enviar = vi
+      .spyOn(app.get(CorreoService), 'enviar')
+      .mockResolvedValue(undefined);
+
+    await request(servidor)
+      .post('/api/auth/recuperar-contrasena')
+      .send({ email })
+      .expect(200);
+    const enlace = enviar.mock.calls[0][0].texto
+      .split('\n')
+      .find((linea) => linea.startsWith('http'))!;
+    const token = new URL(enlace).searchParams.get('token')!;
+
+    await request(servidor)
+      .post('/api/auth/restablecer-contrasena')
+      .send({ token, nuevaContrasena: 'corta' })
+      .expect(400);
+
+    const nueva = 'ClaveNueva-2027';
+    await request(servidor)
+      .post('/api/auth/restablecer-contrasena')
+      .send({ token, nuevaContrasena: nueva })
+      .expect(200);
+    await request(servidor)
+      .post('/api/auth/restablecer-contrasena')
+      .send({ token, nuevaContrasena: 'OtraClave-2028' })
+      .expect(400);
+
+    await request(servidor)
+      .post('/api/auth/login')
+      .send({ email, contrasena: nueva })
+      .expect(200);
+
+    // Deja la contraseña original para las demás pruebas.
+    await fuente
+      .getRepository(Usuario)
+      .update(
+        { id: usuarioId },
+        { contrasenaHash: await bcrypt.hash(contrasena, 10) },
+      );
+    enviar.mockRestore();
   });
 
   it('401 con contraseña incorrecta', async () => {

@@ -65,6 +65,10 @@ API REST del Sistema CAL, el software de generación automática de horarios con
    - Estado del servidor: <http://localhost:3000/api/salud>
    - Documentación Swagger: <http://localhost:3000/api/docs>
 
+### Correo de recuperación de contraseña
+
+El enlace de "¿Olvidaste tu contraseña?" (RF-04) se envía por el SMTP de Gmail. Para activarlo, en `.env` pon el correo de la cuenta en `SMTP_USER` y en `SMTP_PASS` una contraseña de aplicación de Google (<https://myaccount.google.com/apppasswords>, requiere la verificación en dos pasos). Mientras `SMTP_USER` esté vacío, en desarrollo el enlace aparece en la consola del servidor.
+
 En desarrollo (`NODE_ENV=development`) TypeORM sincroniza el esquema automáticamente. En producción la sincronización está desactivada.
 
 ## Estructura

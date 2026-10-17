@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { AuditoriaService } from '../auditoria/auditoria.service.js';
 import { Sesion } from '../entidades/sesion.entity.js';
 import { Usuario } from '../entidades/usuario.entity.js';
@@ -19,6 +19,10 @@ import {
 
 /** RNF-05: bcrypt con 10 salt rounds. */
 export const SALT_ROUNDS = 10;
+
+/** RF-02 y RF-03: mismo mensaje para cualquier Refresh Token que no sirva. */
+export const MENSAJE_SESION_INVALIDA =
+  'La sesión no es válida o expiró. Inicia sesión de nuevo.';
 
 /** Mismo mensaje para email inexistente, contraseña incorrecta o cuenta inactiva: no revela cuál falló. */
 export const MENSAJE_CREDENCIALES_INVALIDAS = 'Email o contraseña incorrectos.';
@@ -72,6 +76,12 @@ export class AutenticacionService {
       throw new UnauthorizedException(MENSAJE_CREDENCIALES_INVALIDAS);
     }
 
+    // Limpieza: las sesiones vencidas del usuario ya no sirven para nada.
+    await this.sesiones.delete({
+      usuario: { id: usuario.id },
+      expiraEn: LessThan(new Date()),
+    });
+
     const respuesta = await this.emitirTokens(usuario);
     await this.auditoria.registrar({
       usuarioId: usuario.id,
@@ -80,6 +90,89 @@ export class AutenticacionService {
       ip,
     });
     return respuesta;
+  }
+
+  /**
+   * RF-02 y RNF-06: emite un Access Token nuevo a partir de un Refresh Token válido.
+   * El Refresh Token usado se invalida y se entrega uno nuevo (rotación).
+   * Si llega un Refresh Token bien firmado pero ya usado, se asume que fue robado
+   * y se cierran todas las sesiones del usuario.
+   */
+  async renovar(
+    refreshToken: string,
+    ip: string | null,
+  ): Promise<RespuestaSesionDto> {
+    const payload = await this.verificarRefresh(refreshToken);
+    if (!payload) throw new UnauthorizedException(MENSAJE_SESION_INVALIDA);
+
+    const sesion = await this.sesiones.findOne({
+      where: { id: payload.sid },
+      relations: { usuario: true },
+    });
+
+    if (!sesion || sesion.usuario.id !== payload.sub) {
+      await this.sesiones.delete({ usuario: { id: payload.sub } });
+      const existe = await this.usuarios.existsBy({ id: payload.sub });
+      if (existe) {
+        await this.auditoria.registrar({
+          usuarioId: payload.sub,
+          modulo: 'SEGURIDAD',
+          accion: 'REFRESH_REUTILIZADO',
+          detalle: 'Se cerraron todas las sesiones del usuario por seguridad.',
+          ip,
+        });
+      }
+      throw new UnauthorizedException(MENSAJE_SESION_INVALIDA);
+    }
+
+    const valida =
+      sesion.refreshTokenHash === hashRefreshToken(refreshToken) &&
+      sesion.expiraEn.getTime() > Date.now() &&
+      sesion.usuario.activo;
+
+    // El token usado se invalida siempre, sea válido o no.
+    await this.sesiones.delete({ id: sesion.id });
+    if (!valida) throw new UnauthorizedException(MENSAJE_SESION_INVALIDA);
+
+    return this.emitirTokens(sesion.usuario);
+  }
+
+  /** RF-03: invalida el Refresh Token en SESION. Responde igual si ya estaba invalidado. */
+  async cerrarSesion(refreshToken: string, ip: string | null): Promise<void> {
+    const payload = await this.verificarRefresh(refreshToken, true);
+    if (!payload) return;
+
+    const sesion = await this.sesiones.findOne({
+      where: { id: payload.sid },
+      relations: { usuario: true },
+    });
+    if (!sesion || sesion.refreshTokenHash !== hashRefreshToken(refreshToken))
+      return;
+
+    await this.sesiones.delete({ id: sesion.id });
+    await this.auditoria.registrar({
+      usuarioId: sesion.usuario.id,
+      modulo: 'SEGURIDAD',
+      accion: 'LOGOUT',
+      ip,
+    });
+  }
+
+  /** Verifica firma y vigencia del Refresh Token. Al cerrar sesión se acepta uno vencido. */
+  private async verificarRefresh(
+    token: string,
+    ignorarVencimiento = false,
+  ): Promise<PayloadRefresh | null> {
+    try {
+      const payload = await this.jwt.verifyAsync<PayloadRefresh>(token, {
+        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        algorithms: ['HS256'],
+        ignoreExpiration: ignorarVencimiento,
+      });
+      return payload.sub && payload.sid ? payload : null;
+    } catch {
+      return null;
+    }
   }
 
   private async emitirTokens(usuario: Usuario): Promise<RespuestaSesionDto> {
