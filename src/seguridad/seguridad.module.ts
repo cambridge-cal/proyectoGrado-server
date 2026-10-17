@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuditoriaController } from './auditoria/auditoria.controller.js';
 import { AuditoriaService } from './auditoria/auditoria.service.js';
 import { AutenticacionController } from './autenticacion/autenticacion.controller.js';
 import { AutenticacionService } from './autenticacion/autenticacion.service.js';
@@ -20,7 +21,11 @@ import { UsuariosService } from './usuarios/usuarios.service.js';
     TypeOrmModule.forFeature(ENTIDADES_SEGURIDAD),
     JwtModule.register({}),
   ],
-  controllers: [AutenticacionController, UsuariosController],
+  controllers: [
+    AutenticacionController,
+    UsuariosController,
+    AuditoriaController,
+  ],
   providers: [
     AutenticacionService,
     RecuperacionService,
