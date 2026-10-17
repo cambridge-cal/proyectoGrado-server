@@ -29,7 +29,10 @@ function crearServicio(usuario: Record<string, unknown> | null) {
     getOne: vi.fn().mockResolvedValue(usuario),
   };
   const usuarios = { createQueryBuilder: vi.fn(() => consulta) };
-  const sesiones = { insert: vi.fn().mockResolvedValue(undefined) };
+  const sesiones = {
+    insert: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+  };
   const auditoria = { registrar: vi.fn().mockResolvedValue(undefined) };
   const config = {
     getOrThrow: (clave: string) => SECRETOS[clave],
