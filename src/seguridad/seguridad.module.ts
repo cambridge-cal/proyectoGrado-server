@@ -5,6 +5,8 @@ import { AuditoriaService } from './auditoria/auditoria.service.js';
 import { AutenticacionController } from './autenticacion/autenticacion.controller.js';
 import { AutenticacionService } from './autenticacion/autenticacion.service.js';
 import { JwtAuthGuard } from './autenticacion/jwt-auth.guard.js';
+import { RecuperacionService } from './autenticacion/recuperacion.service.js';
+import { CorreoService } from './correo/correo.service.js';
 import { ENTIDADES_SEGURIDAD } from './entidades/index.js';
 
 /** Módulo de Seguridad: Autenticación JWT, control de acceso por roles y registro de auditoría (RF-01 a RF-08). */
@@ -15,7 +17,13 @@ import { ENTIDADES_SEGURIDAD } from './entidades/index.js';
     JwtModule.register({}),
   ],
   controllers: [AutenticacionController],
-  providers: [AutenticacionService, AuditoriaService, JwtAuthGuard],
+  providers: [
+    AutenticacionService,
+    RecuperacionService,
+    CorreoService,
+    AuditoriaService,
+    JwtAuthGuard,
+  ],
   exports: [TypeOrmModule, AuditoriaService, JwtAuthGuard, JwtModule],
 })
 export class SeguridadModule {}

@@ -34,6 +34,21 @@ describe('validarEntorno', () => {
     ).toThrow(/distintos/);
   });
 
+  it('en producción exige la configuración de correo', () => {
+    expect(() => validarEntorno({ ...base, NODE_ENV: 'production' })).toThrow(
+      /SMTP_USER, SMTP_PASS, URL_CLIENTE/,
+    );
+    expect(() =>
+      validarEntorno({
+        ...base,
+        NODE_ENV: 'production',
+        SMTP_USER: 'cal@gmail.com',
+        SMTP_PASS: 'clave-de-aplicacion',
+        URL_CLIENTE: 'https://cal.example.com',
+      }),
+    ).not.toThrow();
+  });
+
   it('rechaza un NODE_ENV desconocido', () => {
     expect(() => validarEntorno({ ...base, NODE_ENV: 'staging' })).toThrow(
       /NODE_ENV/,

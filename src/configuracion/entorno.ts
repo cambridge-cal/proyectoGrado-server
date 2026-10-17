@@ -47,6 +47,20 @@ export function validarEntorno(
     throw new Error('JWT_SECRET y JWT_REFRESH_SECRET deben ser distintos.');
   }
 
+  // En producción el correo de recuperación (RF-04) debe funcionar sí o sí.
+  if (nodeEnv === 'production') {
+    const faltantesProduccion = [
+      'SMTP_USER',
+      'SMTP_PASS',
+      'URL_CLIENTE',
+    ].filter((clave) => !String(config[clave] ?? '').trim());
+    if (faltantesProduccion.length > 0) {
+      throw new Error(
+        `En producción faltan: ${faltantesProduccion.join(', ')}.`,
+      );
+    }
+  }
+
   const puertoBd = Number(config.DB_PORT);
   if (!Number.isInteger(puertoBd) || puertoBd <= 0) {
     throw new Error('DB_PORT debe ser un número entero positivo.');
