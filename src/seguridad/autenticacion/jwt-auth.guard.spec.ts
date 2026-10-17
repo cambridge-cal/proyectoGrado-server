@@ -1,19 +1,32 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { Publico } from '../autorizacion/decoradores.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 
 const SECRETO = 'secreto-access-de-pruebas-0123456789';
 const config = { getOrThrow: () => SECRETO } as unknown as ConfigService;
 const jwt = new JwtService();
-const guard = new JwtAuthGuard(jwt, config);
+const guard = new JwtAuthGuard(jwt, config, new Reflector());
 
-function contexto(authorization?: string) {
+class ControladorPrueba {
+  privada() {}
+  @Publico()
+  publica() {}
+}
+
+function contexto(
+  authorization?: string,
+  metodo: 'privada' | 'publica' = 'privada',
+) {
   const peticion: Record<string, unknown> = {
     headers: authorization ? { authorization } : {},
   };
   const ctx = {
     switchToHttp: () => ({ getRequest: () => peticion }),
+    getHandler: () => ControladorPrueba.prototype[metodo],
+    getClass: () => ControladorPrueba,
   } as unknown as ExecutionContext;
   return { ctx, peticion };
 }
@@ -53,5 +66,11 @@ describe('JwtAuthGuard', () => {
     await expect(
       guard.canActivate(contexto(`Bearer ${token}`).ctx),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('deja pasar sin token las rutas marcadas con @Publico()', async () => {
+    await expect(
+      guard.canActivate(contexto(undefined, 'publica').ctx),
+    ).resolves.toBe(true);
   });
 });

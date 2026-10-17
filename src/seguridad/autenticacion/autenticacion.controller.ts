@@ -6,7 +6,6 @@ import {
   HttpStatus,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -29,7 +28,8 @@ import {
 } from './dto/recuperar-contrasena.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { RespuestaSesionDto } from './dto/respuesta-sesion.dto.js';
-import { JwtAuthGuard, type PeticionAutenticada } from './jwt-auth.guard.js';
+import { Publico } from '../autorizacion/decoradores.js';
+import { type PeticionAutenticada } from './jwt-auth.guard.js';
 import type { PayloadAccess } from './tokens.js';
 
 @ApiTags('Autenticación')
@@ -40,6 +40,7 @@ export class AutenticacionController {
     private readonly recuperacion: RecuperacionService,
   ) {}
 
+  @Publico()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   // Más estricto que el límite global (RNF-04) para frenar ataques de fuerza bruta.
@@ -63,6 +64,7 @@ export class AutenticacionController {
     );
   }
 
+  @Publico()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -81,6 +83,7 @@ export class AutenticacionController {
     return this.autenticacion.renovar(datos.refreshToken, peticion.ip ?? null);
   }
 
+  @Publico()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
@@ -97,6 +100,7 @@ export class AutenticacionController {
     );
   }
 
+  @Publico()
   @Post('recuperar-contrasena')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -113,6 +117,7 @@ export class AutenticacionController {
     return this.recuperacion.solicitar(datos.email, peticion.ip ?? null);
   }
 
+  @Publico()
   @Post('restablecer-contrasena')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -136,7 +141,6 @@ export class AutenticacionController {
   }
 
   @Get('perfil')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Datos del usuario dueño del Access Token' })
   @ApiUnauthorizedResponse({

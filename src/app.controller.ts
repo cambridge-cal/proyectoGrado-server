@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Publico } from './seguridad/autorizacion/decoradores.js';
 
+@Publico()
 @ApiTags('Sistema')
 @Controller('salud')
 export class AppController {
