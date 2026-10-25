@@ -26,7 +26,7 @@ export class Docente {
   @Column({ length: 120 })
   especialidad: string;
 
-  /** Horas de clase que el docente puede dictar por semana; la usa el motor de horarios. */
-  @Column({ name: 'carga_maxima_semanal', type: 'int' })
+  /** Horas de clase que el docente puede dictar por semana; la usa el motor de horarios. 40 por defecto (RF-15). */
+  @Column({ name: 'carga_maxima_semanal', type: 'int', default: 40 })
   cargaMaximaSemanal: number;
 }

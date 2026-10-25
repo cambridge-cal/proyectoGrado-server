@@ -5,6 +5,8 @@ import { AulasController } from './aulas/aulas.controller.js';
 import { AulasService } from './aulas/aulas.service.js';
 import { CursosController } from './cursos/cursos.controller.js';
 import { CursosService } from './cursos/cursos.service.js';
+import { DocentesController } from './docentes/docentes.controller.js';
+import { DocentesService } from './docentes/docentes.service.js';
 import { ENTIDADES_HORARIOS } from './entidades/index.js';
 import { FranjasController } from './franjas/franjas.controller.js';
 import { FranjasService } from './franjas/franjas.service.js';
@@ -25,6 +27,7 @@ import { PeriodosService } from './periodos/periodos.service.js';
     GruposController,
     AulasController,
     FranjasController,
+    DocentesController,
   ],
   providers: [
     PeriodosService,
@@ -33,6 +36,7 @@ import { PeriodosService } from './periodos/periodos.service.js';
     GruposService,
     AulasService,
     FranjasService,
+    DocentesService,
   ],
   exports: [PeriodosService],
 })

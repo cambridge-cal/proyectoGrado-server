@@ -30,6 +30,9 @@ export interface Actor {
   ip: string | null;
 }
 
+/** RF-15: carga máxima semanal por defecto de un docente. */
+export const CARGA_MAXIMA_POR_DEFECTO = 40;
+
 const VIOLACION_UNICA = '23505';
 const VIOLACION_LLAVE_FORANEA = '23503';
 
@@ -114,7 +117,8 @@ export class UsuariosService {
             tx.create(Docente, {
               usuario,
               especialidad: datos.especialidad!,
-              cargaMaximaSemanal: datos.cargaMaximaSemanal!,
+              cargaMaximaSemanal:
+                datos.cargaMaximaSemanal ?? CARGA_MAXIMA_POR_DEFECTO,
             }),
           );
         }
