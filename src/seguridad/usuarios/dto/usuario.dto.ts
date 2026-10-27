@@ -87,15 +87,12 @@ export class CrearUsuarioDto extends CamposUsuario {
   especialidad?: string;
 
   @ApiPropertyOptional({
-    description: 'Obligatorio para DOCENTE. Horas por semana.',
+    description: 'Solo DOCENTE. Horas por semana; 40 si no se envía (RF-15).',
     example: 20,
   })
-  @ValidateIf(
-    (o: CrearUsuarioDto) =>
-      o.rol === Rol.DOCENTE || o.cargaMaximaSemanal !== undefined,
-  )
+  @ValidateIf((o: CrearUsuarioDto) => o.cargaMaximaSemanal !== undefined)
   @Type(() => Number)
-  @IsInt({ message: 'La carga máxima semanal del docente es obligatoria.' })
+  @IsInt({ message: 'La carga máxima semanal debe ser un número entero.' })
   @Min(1)
   @Max(60)
   cargaMaximaSemanal?: number;

@@ -18,6 +18,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "semilla": "nest build && node dist/semilla.js",
+    "rendimiento:motor": "nest build && node dist/scripts/rendimiento-motor.js",
     "lint": "oxlint src/ test/",
     "test": "vitest run",
     "test:watch": "vitest",
