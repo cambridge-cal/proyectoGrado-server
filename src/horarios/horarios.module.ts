@@ -12,6 +12,7 @@ import { FranjasController } from './franjas/franjas.controller.js';
 import { FranjasService } from './franjas/franjas.service.js';
 import { GruposController } from './grupos/grupos.controller.js';
 import { GruposService } from './grupos/grupos.service.js';
+import { MotorService } from './motor/motor.service.js';
 import { NivelesController } from './niveles/niveles.controller.js';
 import { NivelesService } from './niveles/niveles.service.js';
 import { PeriodosController } from './periodos/periodos.controller.js';
@@ -37,7 +38,8 @@ import { PeriodosService } from './periodos/periodos.service.js';
     AulasService,
     FranjasService,
     DocentesService,
+    MotorService,
   ],
-  exports: [PeriodosService],
+  exports: [PeriodosService, MotorService],
 })
 export class HorariosModule {}
