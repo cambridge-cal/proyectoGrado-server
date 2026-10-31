@@ -133,6 +133,81 @@ El ruleset debe configurarse con:
 - Solo Squash merge
 - Sin force push ni borrado de rama
 
+### Comando para crear el ruleset
+
+Ejecutar **una sola vez** desde la terminal con `gh` autenticado:
+
+```bash
+gh api repos/cambridge-cal/proyectoGrado-server/rulesets \
+  --method POST \
+  --input - <<'EOF'
+{
+  "name": "Protección main",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "bypass_actors": [],
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": true,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "Lint, typecheck y build" },
+          { "context": "Pruebas unitarias" },
+          { "context": "Pruebas e2e" },
+          { "context": "npm audit" },
+          { "context": "Escaneo de secretos" },
+          { "context": "CodeQL" },
+          { "context": "Validar PR" }
+        ]
+      }
+    },
+    {
+      "type": "merge_queue",
+      "parameters": {
+        "merge_method": "squash"
+      }
+    }
+  ]
+}
+EOF
+```
+
+Después, deshabilitar los métodos de merge que no sean squash:
+
+```bash
+gh api repos/cambridge-cal/proyectoGrado-server \
+  --method PATCH \
+  --field allow_squash_merge=true \
+  --field allow_merge_commit=false \
+  --field allow_rebase_merge=false \
+  --field allow_auto_merge=true \
+  --field delete_branch_on_merge=true
+```
+
+> **Nota**: estos comandos modifican la configuración del repositorio. Solo ejecutarlos después de revisar que los nombres de los checks coinciden con los que aparecen en la pestaña Checks del primer PR que pase CI.
+
 ## Cambios al proceso
 
 La **Definición de Hecho** del proyecto cambia de:
