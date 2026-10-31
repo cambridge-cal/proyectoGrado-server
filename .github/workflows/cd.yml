@@ -1,0 +1,69 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Construir y publicar imagen Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Iniciar sesión en GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extraer metadatos de Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Construir y publicar imagen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # Despliegue al servidor de producción: habilitarlo cuando se defina el servidor.
+  # Secretos necesarios:
+  #   - DEPLOY_HOST: IP o dominio del servidor
+  #   - DEPLOY_USER: usuario SSH
+  #   - DEPLOY_KEY: clave privada SSH
+  #   - DEPLOY_PATH: ruta en el servidor donde está el docker-compose.yml de producción
+  deploy:
+    name: Desplegar a producción
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: false  # Deshabilitado hasta definir el servidor de producción
+    environment:
+      name: production
+      url: https://${{ vars.PRODUCTION_DOMAIN }}
+    steps:
+      - name: Desplegar vía SSH
+        run: |
+          echo "Conectar a $DEPLOY_HOST y ejecutar docker compose pull && docker compose up -d"
+          echo "Este paso se habilitará cuando se configure el servidor de producción."

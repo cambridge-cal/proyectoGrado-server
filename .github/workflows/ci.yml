@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-typecheck-build:
+    name: Lint, typecheck y build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run build
+
+  unit-tests:
+    name: Pruebas unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:cov
+      - name: Verificar umbral de cobertura
+        run: |
+          node -e "
+            const r = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json','utf8'));
+            const pct = r.total.lines.pct;
+            console.log('Cobertura de líneas: ' + pct + '%');
+            if (pct < 60) { console.error('Por debajo del umbral mínimo (60%)'); process.exit(1); }
+          "
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+  e2e-tests:
+    name: Pruebas e2e
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: cal_test
+          POSTGRES_PASSWORD: cal_test_ci
+          POSTGRES_DB: sistema_cal_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cal_test -d sistema_cal_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: cal_test
+      DB_PASSWORD: cal_test_ci
+      DB_NAME: sistema_cal_test
+      CORS_ORIGINS: http://localhost:5173
+      JWT_SECRET: ci-test-jwt-secret-que-tiene-al-menos-32-caracteres-ok
+      JWT_REFRESH_SECRET: ci-test-jwt-refresh-secret-distinto-de-32-chars
+      SEMILLA_CONTRASENA: ClaveCi2026
+      GEMINI_API_KEY: fake-key-for-ci
+      GEMINI_MODEL: gemini-3.1-pro-preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:e2e
