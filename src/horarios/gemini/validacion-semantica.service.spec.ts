@@ -1,6 +1,11 @@
 import { ConfigService } from '@nestjs/config';
 import { DiaSemana, Jornada } from '../entidades/enums.js';
-import type { ClienteGemini, SolicitudGemini } from './cliente-gemini.js';
+import {
+  type ClienteGemini,
+  MODELO_POR_DEFECTO,
+  presupuestoRazonamiento,
+  type SolicitudGemini,
+} from './cliente-gemini.js';
 import type { RespuestaGemini } from './prompt.js';
 import {
   type DatosValidacion,
@@ -284,6 +289,20 @@ describe('ValidacionSemanticaService (RF-17, RNF-18)', () => {
     });
   });
 
+  it('cuota agotada (429): respaldo con su propio estado', async () => {
+    const { falso } = cliente(() => {
+      throw Object.assign(new Error('RESOURCE_EXHAUSTED'), { status: 429 });
+    });
+    const r = await servicio(falso).validar(datos);
+    expect(r).toMatchObject({ validadoGemini: false, estado: 'CUOTA_AGOTADA' });
+    expect(r.detalle).toContain('gemini-prueba');
+  });
+
+  it('espera 120 s por defecto (RNF-02)', () => {
+    const { falso } = cliente(() => '');
+    expect(servicio(falso).timeoutMs).toBe(120_000);
+  });
+
   it('error de la API: respaldo sin exponer el mensaje original', async () => {
     const { falso } = cliente(() => {
       throw new Error('API key not valid: clave-secreta-123');
@@ -321,4 +340,24 @@ describe('ValidacionSemanticaService (RF-17, RNF-18)', () => {
     });
     expect(r.asignaciones).toBe(datos.asignaciones);
   });
+});
+
+describe('Configuración del cliente de Gemini (RNF-30)', () => {
+  it('usa Gemini 2.5 Flash por defecto', () => {
+    expect(MODELO_POR_DEFECTO).toBe('gemini-2.5-flash');
+  });
+
+  it.each([
+    ['gemini-2.5-flash', undefined, 1024],
+    ['gemini-2.5-flash', '0', 0],
+    ['gemini-2.5-flash', '-1', -1],
+    ['gemini-2.5-flash', 'mucho', 1024],
+    ['gemini-3.1-pro-preview', undefined, undefined],
+    ['gemini-3.1-pro-preview', '2048', 2048],
+  ])(
+    'presupuesto de razonamiento de %s con %s: %s',
+    (modelo, valor, esperado) => {
+      expect(presupuestoRazonamiento(modelo, valor)).toBe(esperado);
+    },
+  );
 });

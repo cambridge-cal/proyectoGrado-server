@@ -71,6 +71,7 @@ export type EstadoValidacion =
   | 'RESPUESTA_INVALIDA'
   | 'AJUSTES_INVALIDOS'
   | 'TIEMPO_AGOTADO'
+  | 'CUOTA_AGOTADA'
   | 'ERROR'
   | 'SIN_CONFIGURAR';
 
@@ -100,7 +101,8 @@ export interface ResultadoValidacion {
   detalle: string | null;
 }
 
-export const TIMEOUT_POR_DEFECTO_MS = 60_000;
+/** RNF-02 da 3 minutos al proceso completo; el AG y la BT tardan pocos segundos (TKT-019). */
+export const TIMEOUT_POR_DEFECTO_MS = 120_000;
 
 /** Ids cortos que ve Gemini y su traducción a los ids reales. */
 interface Traduccion {
@@ -172,13 +174,20 @@ export class ValidacionSemanticaService {
         timeoutMs: this.timeoutMs,
       });
     } catch (error) {
-      const nombre = (error as Error)?.name;
-      return nombre === 'TimeoutError' || nombre === 'AbortError'
-        ? respaldo(
-            'TIEMPO_AGOTADO',
-            `Gemini no respondió en ${Math.round(this.timeoutMs / 1000)} s.`,
-          )
-        : respaldo('ERROR', 'La API de Gemini devolvió un error.');
+      const e = error as { name?: string; status?: number; message?: string };
+      if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+        return respaldo(
+          'TIEMPO_AGOTADO',
+          `Gemini no respondió en ${Math.round(this.timeoutMs / 1000)} s.`,
+        );
+      }
+      if (e?.status === 429 || /RESOURCE_EXHAUSTED/.test(e?.message ?? '')) {
+        return respaldo(
+          'CUOTA_AGOTADA',
+          `Se agotó la cuota de la API de Gemini para el modelo ${this.cliente.modelo}.`,
+        );
+      }
+      return respaldo('ERROR', 'La API de Gemini devolvió un error.');
     }
 
     let respuesta: RespuestaGemini;
