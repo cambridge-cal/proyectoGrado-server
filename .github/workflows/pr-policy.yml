@@ -1,0 +1,54 @@
+name: Política de PR
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate:
+    name: Validar PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar título (Conventional Commits)
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          PATTERN='^(feat|fix|docs|test|refactor|chore|hotfix)(\(.+\))?: .+'
+          if ! echo "$TITLE" | grep -qE "$PATTERN"; then
+            echo "::error::El título del PR no sigue Conventional Commits."
+            echo "Formato esperado: tipo(alcance): descripción"
+            echo "Tipos válidos: feat, fix, docs, test, refactor, chore, hotfix"
+            echo "Título recibido: $TITLE"
+            exit 1
+          fi
+          echo "Título válido: $TITLE"
+
+      - name: Validar nombre de rama
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          PATTERN='^(feature|fix|hotfix|exploracion|test|docs|chore)/TKT-[0-9]{3}-.+'
+          if ! echo "$BRANCH" | grep -qE "$PATTERN"; then
+            echo "::error::La rama no sigue la nomenclatura del proyecto."
+            echo "Formato esperado: <prefijo>/TKT-XXX-descripcion"
+            echo "Prefijos válidos: feature, fix, hotfix, exploracion, test, docs, chore"
+            echo "Rama recibida: $BRANCH"
+            exit 1
+          fi
+          echo "Rama válida: $BRANCH"
+
+      - name: Validar referencia a issue
+        run: |
+          BODY=$(cat <<'BODY_EOF'
+          ${{ github.event.pull_request.body }}
+          BODY_EOF
+          )
+          if ! echo "$BODY" | grep -qiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) #[0-9]+'; then
+            echo "::error::El PR no referencia un issue (Closes #N, Fixes #N o Resolves #N)."
+            exit 1
+          fi
+          echo "Referencia a issue encontrada."

@@ -1,0 +1,29 @@
+name: Auto-merge
+
+on:
+  check_suite:
+    types: [completed]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Habilitar auto-merge
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Habilitar auto-merge con squash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} \
+            --auto --squash \
+            --repo ${{ github.repository }}
