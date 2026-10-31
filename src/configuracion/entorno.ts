@@ -47,16 +47,26 @@ export function validarEntorno(
     throw new Error('JWT_SECRET y JWT_REFRESH_SECRET deben ser distintos.');
   }
 
-  // En producción el correo de recuperación (RF-04) debe funcionar sí o sí.
+  // En producción el correo de recuperación (RF-04) y Gemini deben funcionar.
   if (nodeEnv === 'production') {
     const faltantesProduccion = [
       'SMTP_USER',
       'SMTP_PASS',
       'URL_CLIENTE',
+      'GEMINI_API_KEY',
     ].filter((clave) => !String(config[clave] ?? '').trim());
     if (faltantesProduccion.length > 0) {
       throw new Error(
         `En producción faltan: ${faltantesProduccion.join(', ')}.`,
+      );
+    }
+
+    // RNF-07: TLS — si se provee uno de los dos archivos, se deben proveer ambos.
+    const tlsCert = String(config.TLS_CERT_PATH ?? '').trim();
+    const tlsKey = String(config.TLS_KEY_PATH ?? '').trim();
+    if ((tlsCert && !tlsKey) || (!tlsCert && tlsKey)) {
+      throw new Error(
+        'TLS_CERT_PATH y TLS_KEY_PATH deben definirse ambos o ninguno.',
       );
     }
   }
