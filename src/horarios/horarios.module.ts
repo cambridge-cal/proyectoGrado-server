@@ -12,6 +12,12 @@ import { FranjasController } from './franjas/franjas.controller.js';
 import { FranjasService } from './franjas/franjas.service.js';
 import { GruposController } from './grupos/grupos.controller.js';
 import { GruposService } from './grupos/grupos.service.js';
+import { CLIENTE_GEMINI, GeminiApi } from './gemini/cliente-gemini.js';
+import { ValidacionSemanticaService } from './gemini/validacion-semantica.service.js';
+import { HorariosController } from './horario/horarios.controller.js';
+import { HorariosService } from './horario/horarios.service.js';
+import { InscripcionesController } from './inscripciones/inscripciones.controller.js';
+import { InscripcionesService } from './inscripciones/inscripciones.service.js';
 import { MotorService } from './motor/motor.service.js';
 import { NivelesController } from './niveles/niveles.controller.js';
 import { NivelesService } from './niveles/niveles.service.js';
@@ -29,6 +35,8 @@ import { PeriodosService } from './periodos/periodos.service.js';
     AulasController,
     FranjasController,
     DocentesController,
+    HorariosController,
+    InscripcionesController,
   ],
   providers: [
     PeriodosService,
@@ -39,7 +47,11 @@ import { PeriodosService } from './periodos/periodos.service.js';
     FranjasService,
     DocentesService,
     MotorService,
+    ValidacionSemanticaService,
+    HorariosService,
+    InscripcionesService,
+    { provide: CLIENTE_GEMINI, useClass: GeminiApi },
   ],
-  exports: [PeriodosService, MotorService],
+  exports: [PeriodosService, MotorService, ValidacionSemanticaService],
 })
 export class HorariosModule {}
