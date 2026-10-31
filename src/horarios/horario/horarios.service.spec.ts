@@ -175,6 +175,8 @@ function fuenteFalsa(datos: Escenario) {
           return qb;
         },
         find: async (o: object) => porIds(datos.docentes)(o),
+        findOneBy: async (w: { usuario: { id: string } }) =>
+          datos.docentes.find((d) => d.usuario.id === w.usuario.id) ?? null,
       },
     ],
     [
@@ -201,6 +203,7 @@ function fuenteFalsa(datos: Escenario) {
           guardados.push(guardado);
           return guardado;
         },
+        findOne: async () => guardados.at(-1) ?? null,
       },
     ],
   ]);
@@ -385,4 +388,29 @@ describe('Sesiones semanales de un grupo', () => {
       expect(sesionesSemanales(intensidad, duracion)).toBe(sesiones);
     },
   );
+});
+
+describe('HorariosService.actual (RF-21, RF-25)', () => {
+  it('responde 404 si todavía no hay un horario activo', async () => {
+    const { servicio } = crear(escenario());
+    await expect(servicio.actual(actor)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('el Administrador ve todo y el docente solo sus clases', async () => {
+    const { servicio } = crear(escenario());
+    await servicio.generar({}, actor);
+    const completo = await servicio.actual(actor);
+    expect(completo.asignaciones).toHaveLength(4);
+
+    const laura = { id: 'u-d1', rol: Rol.DOCENTE, ip: null };
+    const propio = await servicio.actual(laura);
+    expect(propio.asignaciones).toHaveLength(2);
+    expect(propio.totalAsignaciones).toBe(2);
+    expect(propio.asignaciones.every((a) => a.docente?.id === 'd1')).toBe(true);
+
+    const sinPerfil = { id: 'u-otro', rol: Rol.DOCENTE, ip: null };
+    expect((await servicio.actual(sinPerfil)).asignaciones).toHaveLength(0);
+  });
 });
