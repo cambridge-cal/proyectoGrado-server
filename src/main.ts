@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -7,7 +8,8 @@ import { AppModule } from './app.module.js';
 import { origenesCors } from './configuracion/entorno.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const httpsOptions = opcionesHttps();
+  const app = await NestFactory.create(AppModule, httpsOptions ? { httpsOptions } : {});
   const config = app.get(ConfigService);
 
   app.setGlobalPrefix('api');
@@ -38,6 +40,22 @@ async function bootstrap() {
   );
   SwaggerModule.setup('api/docs', app, documento);
 
-  await app.listen(config.get<number>('PORT') ?? 3000);
+  const puerto = config.get<number>('PORT') ?? 3000;
+  await app.listen(puerto);
+  const protocolo = httpsOptions ? 'https' : 'http';
+  console.log(`Servidor escuchando en ${protocolo}://localhost:${puerto}`);
 }
+
+/** RNF-07: TLS 1.2 o superior cuando se proveen certificado y clave. */
+function opcionesHttps(): { cert: Buffer; key: Buffer; minVersion: string } | undefined {
+  const certPath = process.env.TLS_CERT_PATH;
+  const keyPath = process.env.TLS_KEY_PATH;
+  if (!certPath || !keyPath) return undefined;
+  return {
+    cert: readFileSync(certPath),
+    key: readFileSync(keyPath),
+    minVersion: 'TLSv1.2',
+  };
+}
+
 await bootstrap();
