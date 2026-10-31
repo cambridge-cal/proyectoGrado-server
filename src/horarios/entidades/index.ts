@@ -1,6 +1,7 @@
 import { Aula } from './aula.entity.js';
 import { Curso } from './curso.entity.js';
 import { Disponibilidad } from './disponibilidad.entity.js';
+import { EstudianteGrupo } from './estudiante-grupo.entity.js';
 import { FranjaHoraria } from './franja-horaria.entity.js';
 import { Grupo } from './grupo.entity.js';
 import { Horario } from './horario.entity.js';
@@ -11,6 +12,7 @@ export {
   Aula,
   Curso,
   Disponibilidad,
+  EstudianteGrupo,
   FranjaHoraria,
   Grupo,
   Horario,
@@ -30,4 +32,5 @@ export const ENTIDADES_HORARIOS = [
   FranjaHoraria,
   Disponibilidad,
   Horario,
+  EstudianteGrupo,
 ];
