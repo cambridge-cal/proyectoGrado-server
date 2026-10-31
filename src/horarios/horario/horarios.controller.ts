@@ -74,7 +74,7 @@ export class HorariosController {
   @Get('actual')
   @ApiOperation({
     summary:
-      'Horario activo del período en curso; el docente recibe solo sus clases (RF-21, RF-25)',
+      'Horario activo del período en curso; el docente recibe sus clases y el estudiante las de sus grupos (RF-21, RF-25)',
   })
   @ApiNotFoundResponse({ description: 'Todavía no hay un horario activo.' })
   actual(@UsuarioActual() u: PayloadAccess, @Req() r: Request) {

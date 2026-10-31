@@ -9,9 +9,11 @@ import type { Actor } from '../../compartido/actor.js';
 import { desplazamiento, Pagina } from '../../compartido/paginacion.js';
 import { AuditoriaService } from '../../seguridad/auditoria/auditoria.service.js';
 import { Docente } from '../../seguridad/entidades/docente.entity.js';
+import { Estudiante } from '../../seguridad/entidades/estudiante.entity.js';
 import { Rol } from '../../seguridad/entidades/rol.enum.js';
 import { Aula } from '../entidades/aula.entity.js';
 import { Disponibilidad } from '../entidades/disponibilidad.entity.js';
+import { EstudianteGrupo } from '../entidades/estudiante-grupo.entity.js';
 import { TipoAula } from '../entidades/enums.js';
 import {
   FranjaHoraria,
@@ -162,7 +164,7 @@ export class HorariosService {
 
   /**
    * RF-21 y RF-25: el horario activo más reciente del período en curso. El docente solo
-   * ve sus clases; el Administrador ve todo el horario.
+   * ve sus clases, el estudiante solo las de sus grupos activos y el Administrador todo.
    */
   async actual(actor: Actor): Promise<HorarioDetalle> {
     const horario = await this.fuente.getRepository(Horario).findOne({
@@ -189,6 +191,19 @@ export class HorariosService {
         .getRepository(Docente)
         .findOneBy({ usuario: { id: actor.id } });
       return (a) => Boolean(docente) && a.docente?.id === docente!.id;
+    }
+    if (actor.rol === Rol.ESTUDIANTE) {
+      const estudiante = await this.fuente
+        .getRepository(Estudiante)
+        .findOneBy({ usuario: { id: actor.id } });
+      const inscripciones = estudiante
+        ? await this.fuente.getRepository(EstudianteGrupo).find({
+            where: { estudiante: { id: estudiante.id }, activo: true },
+            relations: { grupo: true },
+          })
+        : [];
+      const grupos = new Set(inscripciones.map((i) => i.grupo.id));
+      return (a) => Boolean(a.grupo) && grupos.has(a.grupo!.id);
     }
     return null;
   }
