@@ -46,7 +46,7 @@ jobs:
             console.log('Cobertura de líneas: ' + pct + '%');
             if (pct < 60) { console.error('Por debajo del umbral mínimo (60%)'); process.exit(1); }
           "
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
