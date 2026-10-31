@@ -31,6 +31,8 @@ export interface ValidacionHorario {
     asignaciones: number[];
   }>;
   ajustesAplicados: Array<{ posicion: number; motivo: string }>;
+  /** Rondas con Gemini (2 si hubo que corregir los ajustes); 0 si no se llamó. */
+  rondas?: number;
 }
 
 /**

@@ -155,7 +155,12 @@ describe('ValidacionSemanticaService (RF-17, RNF-18)', () => {
     expect(mensaje).toContain('"grupo":"ING-A1-01"');
     expect(mensaje).toContain('"docente":"D1"');
     expect(mensaje).not.toContain('uuid-laura');
-    expect(solicitudes[0].timeoutMs).toBe(5000);
+    expect(solicitudes[0].timeoutMs).toBeLessThanOrEqual(5000);
+    expect(solicitudes[0].timeoutMs).toBeGreaterThan(4900);
+    // Gemini recibe la disponibilidad de cada docente para proponer ajustes válidos.
+    expect(mensaje).toContain(
+      '"disponibilidad":["Lunes 07:00","Lunes 09:00","Martes 07:00"]',
+    );
   });
 
   it('aprobación sin ajustes: validadoGemini = true', async () => {
@@ -220,6 +225,58 @@ describe('ValidacionSemanticaService (RF-17, RNF-18)', () => {
       estado: 'AJUSTES_INVALIDOS',
     });
     expect(r.asignaciones).toBe(datos.asignaciones);
+  });
+
+  it('si los ajustes rompen RF-18 le explica a Gemini por qué y aplica la corrección', async () => {
+    const respuestas = [
+      json({
+        aprobado: true,
+        observaciones: [],
+        ajustes: [{ asignacion: 'S2', inicio: '07:00', motivo: 'Juntar' }],
+      }),
+      json({
+        aprobado: true,
+        observaciones: [],
+        ajustes: [
+          {
+            asignacion: 'S2',
+            dia: 'Martes',
+            inicio: '07:00',
+            motivo: 'Repartir',
+          },
+        ],
+      }),
+    ];
+    const { falso, solicitudes } = cliente(() => respuestas.shift()!);
+    const r = await servicio(falso).validar(datos);
+    expect(r).toMatchObject({
+      validadoGemini: true,
+      estado: 'APROBADO_CON_AJUSTES',
+      rondas: 2,
+    });
+    expect(r.asignaciones[1].franjaId).toBe('f-mar-7');
+    expect(solicitudes).toHaveLength(2);
+    expect(solicitudes[1].mensaje).toContain('Tu respuesta anterior fue');
+    expect(solicitudes[1].mensaje).toContain(
+      'S1 y S2: el docente queda con dos clases en la misma franja',
+    );
+  });
+
+  it('si la corrección tampoco sirve, conserva el horario del AG + BT', async () => {
+    const { falso, solicitudes } = cliente(() =>
+      json({
+        aprobado: true,
+        observaciones: [],
+        ajustes: [{ asignacion: 'S2', inicio: '07:00', motivo: 'Juntar' }],
+      }),
+    );
+    const r = await servicio(falso).validar(datos);
+    expect(r).toMatchObject({
+      validadoGemini: false,
+      estado: 'AJUSTES_INVALIDOS',
+    });
+    expect(r.detalle).toContain('2 intentos');
+    expect(solicitudes).toHaveLength(2);
   });
 
   it('descarta un cambio de docente a uno sin disponibilidad en la franja', async () => {

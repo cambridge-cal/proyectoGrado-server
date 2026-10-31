@@ -14,7 +14,8 @@ Tu tarea es solo la validación semántica, es decir, lo que el algoritmo no pue
 - cualquier otra incoherencia pedagógica evidente.
 Reglas:
 1. Nunca propongas un cambio que cree un cruce de docente, aula o grupo, ni que supere la capacidad del aula o la carga máxima semanal del docente.
-2. Cada ajuste se refiere a una asignación existente por su id y solo puede cambiar docente, aula, dia, inicio o fin, usando valores que existan en los datos (las franjas disponibles están en "franjas").
+2. Cada ajuste se refiere a una asignación existente por su id y solo puede cambiar docente, aula, dia, inicio o fin, usando valores que existan en los datos (las franjas están en "franjas" y la disponibilidad de cada docente en "disponibilidad").
+   Antes de proponer un ajuste, revisa en "asignaciones" que en la nueva franja ni el docente, ni el aula, ni el grupo tengan otra clase.
 3. Si no encuentras problemas, responde aprobado = true con listas vacías.
 4. Si encuentras problemas y puedes corregirlos con ajustes, responde aprobado = true con los ajustes. Si encuentras problemas graves que no puedes corregir, responde aprobado = false.
 5. Responde únicamente con el JSON del esquema, en español.`;
@@ -111,6 +112,8 @@ export interface ContextoGemini {
     nombre: string;
     especialidad: string;
     cargaMaximaSemanal: number;
+    /** Franjas en las que el docente puede ser asignado, como "Lunes 07:00". */
+    disponibilidad: string[];
   }>;
   aulas: Array<{ id: string; capacidad: number; tipo: string }>;
   grupos: Array<{

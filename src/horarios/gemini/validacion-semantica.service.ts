@@ -2,7 +2,12 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DiaSemana, Jornada } from '../entidades/enums.js';
 import { evaluar, indexar } from '../motor/aptitud.js';
-import type { Asignacion, Evaluacion, InstanciaMotor } from '../motor/tipos.js';
+import type {
+  Asignacion,
+  Evaluacion,
+  InstanciaMotor,
+  Violacion,
+} from '../motor/tipos.js';
 import { CLIENTE_GEMINI, type ClienteGemini } from './cliente-gemini.js';
 import {
   construirMensaje,
@@ -99,6 +104,8 @@ export interface ResultadoValidacion {
   tiempoMs: number;
   /** Motivo del respaldo, para el Administrador. Nunca incluye la clave. */
   detalle: string | null;
+  /** Rondas con Gemini: 2 si hizo falta corregir los ajustes. */
+  rondas?: number;
 }
 
 /** RNF-02 da 3 minutos al proceso completo; el AG y la BT tardan pocos segundos (TKT-019). */
@@ -114,7 +121,8 @@ interface Traduccion {
 
 /**
  * Validación semántica con Gemini AI (RF-17, RNF-18, Figura 6.5). Si Gemini aprueba,
- * aplica sus ajustes solo cuando siguen cumpliendo las restricciones duras de RF-18.
+ * aplica sus ajustes solo cuando siguen cumpliendo las restricciones duras de RF-18; si
+ * no las cumplen, le explica a Gemini qué restricción rompe cada uno y le pide una corrección.
  * Ante rechazo, respuesta inválida, error o tiempo agotado conserva el horario del
  * AG + Búsqueda Tabú con validadoGemini = false.
  */
@@ -165,112 +173,185 @@ export class ValidacionSemanticaService {
     }
 
     const traduccion = traducir(datos);
-    let texto: string;
-    try {
-      texto = await this.cliente.generar({
-        instrucciones: INSTRUCCIONES_SISTEMA,
-        mensaje: construirMensaje(traduccion.contexto),
-        esquema: ESQUEMA_RESPUESTA,
-        timeoutMs: this.timeoutMs,
-      });
-    } catch (error) {
-      const e = error as { name?: string; status?: number; message?: string };
-      if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+    let mensaje = construirMensaje(traduccion.contexto);
+    let ultimoMotivo = '';
+    let ultimasObservaciones: ObservacionHorario[] = [];
+
+    // Hasta MAX_RONDAS: si los ajustes rompen RF-18, se le explica a Gemini por qué y corrige.
+    for (let ronda = 1; ronda <= MAX_RONDAS; ronda++) {
+      const restante = this.timeoutMs - (performance.now() - inicio);
+      if (ronda > 1 && restante < MINIMO_RONDA_MS) break;
+
+      let texto: string;
+      try {
+        texto = await this.cliente.generar({
+          instrucciones: INSTRUCCIONES_SISTEMA,
+          mensaje,
+          esquema: ESQUEMA_RESPUESTA,
+          timeoutMs: Math.round(restante),
+        });
+      } catch (error) {
+        const e = error as { name?: string; status?: number; message?: string };
+        if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+          return respaldo(
+            'TIEMPO_AGOTADO',
+            `Gemini no respondió en ${Math.round(this.timeoutMs / 1000)} s.`,
+            ultimasObservaciones,
+          );
+        }
+        if (e?.status === 429 || /RESOURCE_EXHAUSTED/.test(e?.message ?? '')) {
+          return respaldo(
+            'CUOTA_AGOTADA',
+            `Se agotó la cuota de la API de Gemini para el modelo ${this.cliente.modelo}.`,
+            ultimasObservaciones,
+          );
+        }
         return respaldo(
-          'TIEMPO_AGOTADO',
-          `Gemini no respondió en ${Math.round(this.timeoutMs / 1000)} s.`,
+          'ERROR',
+          'La API de Gemini devolvió un error.',
+          ultimasObservaciones,
         );
       }
-      if (e?.status === 429 || /RESOURCE_EXHAUSTED/.test(e?.message ?? '')) {
+
+      let respuesta: RespuestaGemini;
+      try {
+        respuesta = JSON.parse(texto) as RespuestaGemini;
+      } catch {
         return respaldo(
-          'CUOTA_AGOTADA',
-          `Se agotó la cuota de la API de Gemini para el modelo ${this.cliente.modelo}.`,
+          'RESPUESTA_INVALIDA',
+          'La respuesta de Gemini no es JSON.',
         );
       }
-      return respaldo('ERROR', 'La API de Gemini devolvió un error.');
-    }
+      const errores = validarRespuesta(respuesta, traduccion.contexto);
+      if (errores.length) {
+        return respaldo(
+          'RESPUESTA_INVALIDA',
+          `La respuesta de Gemini no tiene el formato esperado: ${errores.slice(0, 3).join('; ')}.`,
+        );
+      }
 
-    let respuesta: RespuestaGemini;
-    try {
-      respuesta = JSON.parse(texto) as RespuestaGemini;
-    } catch {
-      return respaldo(
-        'RESPUESTA_INVALIDA',
-        'La respuesta de Gemini no es JSON.',
-      );
-    }
-    const errores = validarRespuesta(respuesta, traduccion.contexto);
-    if (errores.length) {
-      return respaldo(
-        'RESPUESTA_INVALIDA',
-        `La respuesta de Gemini no tiene el formato esperado: ${errores.slice(0, 3).join('; ')}.`,
-      );
-    }
-
-    const observaciones = respuesta.observaciones.map((o) => ({
-      tipo: o.tipo,
-      severidad: o.severidad,
-      descripcion: o.descripcion,
-      asignaciones: o.asignaciones
-        .map(posicionDe)
-        .filter((p) => p >= 0 && p < datos.asignaciones.length),
-    }));
-
-    if (!respuesta.aprobado) {
-      return respaldo(
-        'RECHAZADO',
-        'Gemini rechazó la propuesta; se conserva el horario del AG + Búsqueda Tabú.',
-        observaciones,
-      );
-    }
-    if (respuesta.ajustes.length === 0) {
-      return {
+      const observaciones = respuesta.observaciones.map((o) => ({
+        tipo: o.tipo,
+        severidad: o.severidad,
+        descripcion: o.descripcion,
+        asignaciones: o.asignaciones
+          .map(posicionDe)
+          .filter((p) => p >= 0 && p < datos.asignaciones.length),
+      }));
+      ultimasObservaciones = observaciones;
+      const exito = (
+        estado: EstadoValidacion,
+        asignaciones: Asignacion[],
+        evaluacion: Evaluacion,
+      ): ResultadoValidacion => ({
         validadoGemini: true,
-        estado: 'APROBADO',
-        asignaciones: datos.asignaciones,
-        evaluacion: original,
+        estado,
+        asignaciones,
+        evaluacion,
         observaciones,
-        ajustesAplicados: [],
+        ajustesAplicados: respuesta.ajustes.map((a) => ({
+          posicion: posicionDe(a.asignacion),
+          motivo: a.motivo,
+        })),
         modelo: this.cliente.modelo,
         tiempoMs: Math.round(performance.now() - inicio),
         detalle: null,
-      };
+        rondas: ronda,
+      });
+
+      if (!respuesta.aprobado) {
+        return respaldo(
+          'RECHAZADO',
+          'Gemini rechazó la propuesta; se conserva el horario del AG + Búsqueda Tabú.',
+          observaciones,
+        );
+      }
+      if (respuesta.ajustes.length === 0) {
+        return exito('APROBADO', datos.asignaciones, original);
+      }
+
+      const ajustado = aplicarAjustes(
+        datos.asignaciones,
+        respuesta,
+        traduccion,
+      );
+      let problemas: string[];
+      let evaluacion: Evaluacion | null = null;
+      if (typeof ajustado === 'string') {
+        ultimoMotivo = ajustado;
+        problemas = [ajustado];
+      } else {
+        evaluacion = evaluar(ajustado, indices);
+        problemas = describirProblemas(
+          evaluacion,
+          original,
+          datos.asignaciones,
+        );
+        if (!problemas.length) {
+          return exito('APROBADO_CON_AJUSTES', ajustado, evaluacion);
+        }
+        ultimoMotivo =
+          evaluacion.violacionesDuras > 0
+            ? 'Los ajustes de Gemini rompían restricciones duras de RF-18; no se aplicaron.'
+            : 'Los ajustes de Gemini superaban la carga máxima de un docente; no se aplicaron.';
+      }
+      mensaje = mensajeDeCorreccion(traduccion.contexto, texto, problemas);
     }
 
-    const ajustado = aplicarAjustes(datos.asignaciones, respuesta, traduccion);
-    if (typeof ajustado === 'string') {
-      return respaldo('AJUSTES_INVALIDOS', ajustado, observaciones);
-    }
-    const evaluacion = evaluar(ajustado, indices);
-    if (evaluacion.violacionesDuras > 0) {
-      return respaldo(
-        'AJUSTES_INVALIDOS',
-        'Los ajustes de Gemini rompían restricciones duras de RF-18; no se aplicaron.',
-        observaciones,
-      );
-    }
-    if (evaluacion.horasSobrecarga > original.horasSobrecarga) {
-      return respaldo(
-        'AJUSTES_INVALIDOS',
-        'Los ajustes de Gemini superaban la carga máxima de un docente; no se aplicaron.',
-        observaciones,
-      );
-    }
-    return {
-      validadoGemini: true,
-      estado: 'APROBADO_CON_AJUSTES',
-      asignaciones: ajustado,
-      evaluacion,
-      observaciones,
-      ajustesAplicados: respuesta.ajustes.map((a) => ({
-        posicion: posicionDe(a.asignacion),
-        motivo: a.motivo,
-      })),
-      modelo: this.cliente.modelo,
-      tiempoMs: Math.round(performance.now() - inicio),
-      detalle: null,
-    };
+    return respaldo(
+      'AJUSTES_INVALIDOS',
+      `${ultimoMotivo} Gemini no logró corregirlos en ${MAX_RONDAS} intentos.`,
+      ultimasObservaciones,
+    );
   }
+}
+
+/** Rondas con Gemini: la propuesta inicial y una corrección si los ajustes rompen RF-18. */
+export const MAX_RONDAS = 2;
+/** Si queda menos de este tiempo de espera, no se intenta la corrección. */
+const MINIMO_RONDA_MS = 15_000;
+
+const NOMBRE_VIOLACION: Record<Violacion['tipo'], string> = {
+  CRUCE_DOCENTE: 'el docente queda con dos clases en la misma franja',
+  CRUCE_AULA: 'el aula queda con dos grupos en la misma franja',
+  CRUCE_GRUPO: 'el grupo queda con dos clases en la misma franja',
+  SIN_DISPONIBILIDAD: 'el docente no tiene disponibilidad en esa franja',
+  CAPACIDAD_AULA: 'el aula no tiene capacidad para el grupo',
+};
+
+/** Explica en texto qué restricciones rompen los ajustes, con los ids que ve Gemini. */
+function describirProblemas(
+  evaluacion: Evaluacion,
+  original: Evaluacion,
+  asignaciones: Asignacion[],
+): string[] {
+  const problemas = evaluacion.violaciones
+    .filter((v) => v.asignaciones.every((p) => p < asignaciones.length))
+    .slice(0, 10)
+    .map(
+      (v) =>
+        `${v.asignaciones.map(etiquetaAsignacion).join(' y ')}: ${NOMBRE_VIOLACION[v.tipo]}`,
+    );
+  if (evaluacion.horasSobrecarga > original.horasSobrecarga) {
+    problemas.push('algún docente supera su carga máxima semanal');
+  }
+  return problemas;
+}
+
+function mensajeDeCorreccion(
+  contexto: ContextoGemini,
+  respuestaAnterior: string,
+  problemas: string[],
+): string {
+  return `${construirMensaje(contexto)}
+
+Tu respuesta anterior fue:
+${respuestaAnterior}
+
+Esos ajustes no se pueden aplicar porque rompen restricciones duras:
+- ${problemas.join('\n- ')}
+
+Corrige los ajustes usando solo franjas en las que el docente esté disponible y en las que ni el docente, ni el aula, ni el grupo tengan otra clase. Si no puedes corregirlos, responde aprobado = true sin ajustes y deja los problemas como observaciones.`;
 }
 
 const etiquetaAsignacion = (posicion: number) => `S${posicion + 1}`;
@@ -293,6 +374,13 @@ function traducir(datos: DatosValidacion): Traduccion {
       nombre: d.nombre,
       especialidad: d.especialidad,
       cargaMaximaSemanal: d.cargaMaximaSemanal,
+      disponibilidad: datos.franjas
+        .filter((f) =>
+          datos.instancia.docentes
+            .find((x) => x.id === d.id)
+            ?.franjasDisponibles.has(f.id),
+        )
+        .map((f) => `${NOMBRES_DIA[f.diaSemana]} ${f.horaInicio}`),
     })),
     aulas: datos.aulas.map((a) => ({
       id: a.codigo,

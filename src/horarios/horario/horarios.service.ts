@@ -116,6 +116,7 @@ export class HorariosService {
           detalle: validacion.detalle,
           observaciones: validacion.observaciones,
           ajustesAplicados: validacion.ajustesAplicados,
+          rondas: validacion.rondas ?? 0,
         },
         tiposAulaExcluidos: excluidos,
         archivado: false,
