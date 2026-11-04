@@ -7,12 +7,16 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, In } from 'typeorm';
 import type { Actor } from '../../compartido/actor.js';
 import { patronBusqueda } from '../../compartido/errores-bd.js';
-import { desplazamiento, Pagina } from '../../compartido/paginacion.js';
+import { desplazamiento, Pagina, PaginacionDto } from '../../compartido/paginacion.js';
 import { AuditoriaService } from '../../seguridad/auditoria/auditoria.service.js';
 import { Docente } from '../../seguridad/entidades/docente.entity.js';
+import { Estudiante } from '../../seguridad/entidades/estudiante.entity.js';
+import { EstudianteGrupo } from '../../horarios/entidades/estudiante-grupo.entity.js';
+import { Horario } from '../../horarios/entidades/horario.entity.js';
 import { EstadoEvaluacion } from '../entidades/estado-evaluacion.enum.js';
 import { Evaluacion } from '../entidades/evaluacion.entity.js';
 import { Formulario } from '../entidades/formulario.entity.js';
+import type { AsignacionHorario } from '../../horarios/entidades/horario.entity.js';
 import {
   AsignacionMasivaDto,
   AsignarEvaluacionDto,
@@ -176,6 +180,66 @@ export class EvaluacionesService {
       evaluacionId: id,
       docenteId: evaluacion.docente.id,
     });
+  }
+
+  /** Evaluaciones filtradas por los docentes del horario de los grupos activos del estudiante (RF-33). */
+  async listarParaEstudiante(
+    usuarioId: string,
+    paginacion: PaginacionDto,
+  ): Promise<Pagina<Evaluacion>> {
+    const estudiante = await this.fuente
+      .getRepository(Estudiante)
+      .findOne({ where: { usuario: { id: usuarioId } } });
+    if (!estudiante)
+      throw new NotFoundException('El perfil de estudiante no existe.');
+
+    const inscripciones = await this.fuente
+      .getRepository(EstudianteGrupo)
+      .find({
+        where: { estudiante: { id: estudiante.id }, activo: true },
+        relations: { grupo: true },
+      });
+
+    if (inscripciones.length === 0)
+      return { datos: [], total: 0, page: paginacion.page, size: paginacion.size };
+
+    const grupoIds = new Set(inscripciones.map((i) => i.grupo.id));
+
+    const horarios = await this.fuente
+      .getRepository(Horario)
+      .find({ where: { archivado: false } });
+
+    const docenteIds = new Set<string>();
+    for (const horario of horarios) {
+      for (const asignacion of horario.asignaciones as AsignacionHorario[]) {
+        if (grupoIds.has(asignacion.grupoId)) {
+          docenteIds.add(asignacion.docenteId);
+        }
+      }
+    }
+
+    if (docenteIds.size === 0)
+      return { datos: [], total: 0, page: paginacion.page, size: paginacion.size };
+
+    const consulta = this.repo
+      .createQueryBuilder('evaluacion')
+      .innerJoinAndSelect('evaluacion.formulario', 'formulario')
+      .innerJoinAndSelect('evaluacion.docente', 'docente')
+      .innerJoinAndSelect('docente.usuario', 'usuario')
+      .where('docente.id IN (:...docenteIds)', {
+        docenteIds: [...docenteIds],
+      })
+      .andWhere('evaluacion.estado != :cerrada', {
+        cerrada: EstadoEvaluacion.CERRADA,
+      })
+      .orderBy('usuario.nombre', 'ASC');
+
+    const { skip, take } = desplazamiento(paginacion);
+    const [datos, total] = await consulta
+      .skip(skip)
+      .take(take)
+      .getManyAndCount();
+    return { datos, total, page: paginacion.page, size: paginacion.size };
   }
 
   private async formulario(id: string): Promise<Formulario> {

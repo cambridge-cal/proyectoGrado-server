@@ -15,6 +15,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { actorDe } from '../../compartido/actor.js';
+import { PaginacionDto } from '../../compartido/paginacion.js';
 import type { PayloadAccess } from '../../seguridad/autenticacion/tokens.js';
 import {
   Roles,
@@ -41,6 +42,19 @@ export class EvaluacionesController {
   @ApiOperation({ summary: 'Lista paginada de evaluaciones' })
   listar(@Query() filtros: FiltrosEvaluacionesDto) {
     return this.servicio.listar(filtros);
+  }
+
+  @Get('mis-docentes')
+  @Roles(Rol.ESTUDIANTE)
+  @ApiOperation({
+    summary:
+      'Evaluaciones filtradas por los docentes del horario del estudiante (RF-33)',
+  })
+  misDocentes(
+    @UsuarioActual() u: PayloadAccess,
+    @Query() paginacion: PaginacionDto,
+  ) {
+    return this.servicio.listarParaEstudiante(u.sub, paginacion);
   }
 
   @Get(':id')
