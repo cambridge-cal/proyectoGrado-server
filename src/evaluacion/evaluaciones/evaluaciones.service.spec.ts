@@ -190,4 +190,103 @@ describe('EvaluacionesService', () => {
       );
     });
   });
+
+  describe('listarParaEstudiante', () => {
+    function crearFuenteFiltrado(opciones: {
+      estudiante?: unknown;
+      inscripciones?: unknown[];
+      horarios?: unknown[];
+      evaluaciones?: unknown[];
+    }) {
+      const qb = crearQb(opciones.evaluaciones ?? [], opciones.evaluaciones?.length ?? 0);
+      qb.where = vi.fn().mockReturnValue(qb);
+
+      const repos: Record<string, unknown> = {};
+      const evalRepo = {
+        createQueryBuilder: vi.fn().mockReturnValue(qb),
+        findOne: vi.fn().mockResolvedValue(evaluacionBase),
+        findOneBy: vi.fn().mockResolvedValue(formulario),
+        find: vi.fn().mockResolvedValue([]),
+        create: vi.fn((d: unknown) => d),
+        save: vi.fn(async (d: unknown) => d),
+        delete: vi.fn(),
+      };
+      repos.Evaluacion = evalRepo;
+      repos.Estudiante = {
+        findOne: vi.fn().mockResolvedValue(opciones.estudiante ?? null),
+      };
+      repos.EstudianteGrupo = {
+        find: vi.fn().mockResolvedValue(opciones.inscripciones ?? []),
+      };
+      repos.Horario = {
+        find: vi.fn().mockResolvedValue(opciones.horarios ?? []),
+      };
+
+      return {
+        getRepository: vi.fn((entidad: { name: string }) => {
+          return repos[entidad.name] ?? evalRepo;
+        }),
+      } as never;
+    }
+
+    it('retorna evaluaciones filtradas por docentes del horario del estudiante', async () => {
+      const fuente = crearFuenteFiltrado({
+        estudiante: { id: 'est-1' },
+        inscripciones: [{ grupo: { id: 'g-1' } }, { grupo: { id: 'g-2' } }],
+        horarios: [
+          {
+            asignaciones: [
+              { grupoId: 'g-1', docenteId: 'd-1' },
+              { grupoId: 'g-3', docenteId: 'd-99' },
+            ],
+          },
+        ],
+        evaluaciones: [evaluacionBase],
+      });
+      const servicio = new EvaluacionesService(fuente, crearAuditoria());
+      const resultado = await servicio.listarParaEstudiante('u-est', {
+        page: 1,
+        size: 20,
+      });
+      expect(resultado.datos).toHaveLength(1);
+    });
+
+    it('retorna vacío si el estudiante no tiene inscripciones activas', async () => {
+      const fuente = crearFuenteFiltrado({
+        estudiante: { id: 'est-1' },
+        inscripciones: [],
+      });
+      const servicio = new EvaluacionesService(fuente, crearAuditoria());
+      const resultado = await servicio.listarParaEstudiante('u-est', {
+        page: 1,
+        size: 20,
+      });
+      expect(resultado.datos).toEqual([]);
+      expect(resultado.total).toBe(0);
+    });
+
+    it('retorna vacío si no hay horarios con sus grupos', async () => {
+      const fuente = crearFuenteFiltrado({
+        estudiante: { id: 'est-1' },
+        inscripciones: [{ grupo: { id: 'g-1' } }],
+        horarios: [
+          { asignaciones: [{ grupoId: 'g-99', docenteId: 'd-1' }] },
+        ],
+      });
+      const servicio = new EvaluacionesService(fuente, crearAuditoria());
+      const resultado = await servicio.listarParaEstudiante('u-est', {
+        page: 1,
+        size: 20,
+      });
+      expect(resultado.datos).toEqual([]);
+    });
+
+    it('lanza NotFoundException si no existe el perfil de estudiante', async () => {
+      const fuente = crearFuenteFiltrado({ estudiante: null });
+      const servicio = new EvaluacionesService(fuente, crearAuditoria());
+      await expect(
+        servicio.listarParaEstudiante('u-no', { page: 1, size: 20 }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });
