@@ -34,9 +34,9 @@ describe('validarEntorno', () => {
     ).toThrow(/distintos/);
   });
 
-  it('en producción exige la configuración de correo', () => {
+  it('en producción exige correo y Gemini', () => {
     expect(() => validarEntorno({ ...base, NODE_ENV: 'production' })).toThrow(
-      /SMTP_USER, SMTP_PASS, URL_CLIENTE/,
+      /SMTP_USER, SMTP_PASS, URL_CLIENTE, GEMINI_API_KEY/,
     );
     expect(() =>
       validarEntorno({
@@ -45,6 +45,28 @@ describe('validarEntorno', () => {
         SMTP_USER: 'cal@gmail.com',
         SMTP_PASS: 'clave-de-aplicacion',
         URL_CLIENTE: 'https://cal.example.com',
+        GEMINI_API_KEY: 'AIzaSyFakeKey12345',
+      }),
+    ).not.toThrow();
+  });
+
+  it('en producción valida que TLS_CERT_PATH y TLS_KEY_PATH vengan en par', () => {
+    const produccion = {
+      ...base,
+      NODE_ENV: 'production',
+      SMTP_USER: 'cal@gmail.com',
+      SMTP_PASS: 'clave-de-aplicacion',
+      URL_CLIENTE: 'https://cal.example.com',
+      GEMINI_API_KEY: 'AIzaSyFakeKey12345',
+    };
+    expect(() =>
+      validarEntorno({ ...produccion, TLS_CERT_PATH: '/cert.pem' }),
+    ).toThrow(/TLS_CERT_PATH y TLS_KEY_PATH deben definirse ambos/);
+    expect(() =>
+      validarEntorno({
+        ...produccion,
+        TLS_CERT_PATH: '/cert.pem',
+        TLS_KEY_PATH: '/key.pem',
       }),
     ).not.toThrow();
   });
