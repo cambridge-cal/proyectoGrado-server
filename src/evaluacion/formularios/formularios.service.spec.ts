@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { FormulariosService } from './formularios.service.js';
+import type { AuditoriaService } from '../../seguridad/auditoria/auditoria.service.js';
 
 function crearQb(resultados: unknown[] = [], total = 0) {
   const qb: Record<string, ReturnType<typeof vi.fn>> = {};
@@ -52,8 +53,11 @@ function crearFuente(overrides: Record<string, unknown> = {}) {
   } as never;
 }
 
+/** AuditoriaService falso: solo interesa saber si se registró la acción. */
 function crearAuditoria() {
-  return { registrar: vi.fn().mockResolvedValue(undefined) } as never;
+  return {
+    registrar: vi.fn().mockResolvedValue(undefined),
+  } as unknown as AuditoriaService & { registrar: ReturnType<typeof vi.fn> };
 }
 
 describe('FormulariosService', () => {

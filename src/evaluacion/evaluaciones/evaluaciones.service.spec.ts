@@ -1,6 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EstadoEvaluacion } from '../entidades/estado-evaluacion.enum.js';
 import { EvaluacionesService } from './evaluaciones.service.js';
+import type { AuditoriaService } from '../../seguridad/auditoria/auditoria.service.js';
 
 const docente = { id: 'd-1', usuario: { id: 'u-1', nombre: 'Ana' } };
 const formulario = { id: 'f-1', nombre: 'Evaluación 2026-II' };
@@ -50,8 +51,11 @@ function crearFuente(overrides: Record<string, unknown> = {}) {
   } as never;
 }
 
+/** AuditoriaService falso: solo interesa saber si se registró la acción. */
 function crearAuditoria() {
-  return { registrar: vi.fn().mockResolvedValue(undefined) } as never;
+  return {
+    registrar: vi.fn().mockResolvedValue(undefined),
+  } as unknown as AuditoriaService & { registrar: ReturnType<typeof vi.fn> };
 }
 
 const actor = { id: 'u-1', rol: 'ADMIN' as never, ip: '127.0.0.1' };
@@ -188,7 +192,7 @@ describe('EvaluacionesService', () => {
         { id: 'e-1' },
         { estado: EstadoEvaluacion.CERRADA },
       );
-      expect((auditoria as any).registrar).toHaveBeenCalledWith(
+      expect(auditoria.registrar).toHaveBeenCalledWith(
         expect.objectContaining({ accion: 'CAMBIAR_ESTADO_EVALUACION' }),
       );
     });
