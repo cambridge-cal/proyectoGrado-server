@@ -1,6 +1,15 @@
-import { Controller, Get, Param, ParseUUIDPipe, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiNotFoundResponse,
   ApiOperation,
   ApiTags,
@@ -12,7 +21,9 @@ import {
   Roles,
   UsuarioActual,
 } from '../../seguridad/autorizacion/decoradores.js';
+import { KddService } from '../kdd/kdd.service.js';
 import { Rol } from '../../seguridad/entidades/index.js';
+import { ResponderEvaluacionDto } from './respuesta.dto.js';
 import { EvaluacionesEstudianteService } from './evaluaciones-estudiante.service.js';
 
 /** Evaluaciones del estudiante autenticado (RF-33 a RF-36). */
@@ -21,7 +32,10 @@ import { EvaluacionesEstudianteService } from './evaluaciones-estudiante.service
 @Roles(Rol.ESTUDIANTE)
 @Controller('estudiantes/yo/evaluaciones')
 export class EvaluacionesEstudianteController {
-  constructor(private readonly servicio: EvaluacionesEstudianteService) {}
+  constructor(
+    private readonly servicio: EvaluacionesEstudianteService,
+    private readonly kdd: KddService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -45,5 +59,25 @@ export class EvaluacionesEstudianteController {
     @Req() r: Request,
   ) {
     return this.servicio.obtener(actorDe(u, r), id);
+  }
+
+  @Post(':id/respuestas')
+  @ApiOperation({
+    summary:
+      'Envía las respuestas y el comentario anónimo, y marca la evaluación como completada (RF-34 a RF-36)',
+  })
+  @ApiConflictResponse({
+    description: 'Ya la respondió o la evaluación ya no recibe respuestas.',
+  })
+  async responder(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResponderEvaluacionDto,
+    @UsuarioActual() u: PayloadAccess,
+    @Req() r: Request,
+  ) {
+    const envio = await this.servicio.responder(actorDe(u, r), id, dto);
+    // RF-39: si con este envío terminó un grupo, el pipeline KDD recalcula el resultado.
+    await this.kdd.alResponder(id);
+    return envio;
   }
 }

@@ -4,10 +4,14 @@ import { SeguridadModule } from '../seguridad/seguridad.module.js';
 import { ENTIDADES_EVALUACION } from './entidades/index.js';
 import { EvaluacionesEstudianteController } from './estudiante/evaluaciones-estudiante.controller.js';
 import { EvaluacionesEstudianteService } from './estudiante/evaluaciones-estudiante.service.js';
+import { EvaluacionesDocenteController } from './evaluaciones/evaluaciones-docente.controller.js';
 import { EvaluacionesController } from './evaluaciones/evaluaciones.controller.js';
 import { EvaluacionesService } from './evaluaciones/evaluaciones.service.js';
 import { FormulariosController } from './formularios/formularios.controller.js';
 import { FormulariosService } from './formularios/formularios.service.js';
+import { AlertasService } from './kdd/alertas.service.js';
+import { AlertasController, KddController } from './kdd/kdd.controller.js';
+import { KddService } from './kdd/kdd.service.js';
 
 /** Módulo de Evaluación: Formularios, evaluaciones anónimas, pipeline KDD y alertas (RF-28 a RF-44). */
 @Module({
@@ -16,11 +20,16 @@ import { FormulariosService } from './formularios/formularios.service.js';
     FormulariosController,
     EvaluacionesController,
     EvaluacionesEstudianteController,
+    EvaluacionesDocenteController,
+    KddController,
+    AlertasController,
   ],
   providers: [
     FormulariosService,
     EvaluacionesService,
     EvaluacionesEstudianteService,
+    KddService,
+    AlertasService,
   ],
   exports: [FormulariosService, EvaluacionesService],
 })
