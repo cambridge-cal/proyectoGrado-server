@@ -170,7 +170,7 @@ describe('EvaluacionesService', () => {
       const servicio = new EvaluacionesService(crearFuente(), auditoria);
       const resultado = await servicio.cambiarEstado(
         'e-1',
-        { estado: EstadoEvaluacion.EN_CURSO },
+        { estado: EstadoEvaluacion.EN_PROGRESO },
         actor,
       );
       expect(resultado).toBeDefined();

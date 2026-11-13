@@ -1,7 +1,11 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource, In } from 'typeorm';
-import { Evaluacion, Formulario } from '../src/evaluacion/entidades/index.js';
+import {
+  Evaluacion,
+  Formulario,
+  Respuesta,
+} from '../src/evaluacion/entidades/index.js';
 import {
   Curso,
   EstudianteGrupo,
@@ -278,6 +282,164 @@ describe('Evaluaciones del estudiante (e2e, RF-33 a RF-36)', () => {
     it('solo los estudiantes consultan sus evaluaciones (RF-07)', async () => {
       const respuesta = await get('/estudiantes/yo/evaluaciones', profeA);
       expect(respuesta.status).toBe(403);
+    });
+  });
+
+  describe('Respuestas anónimas y marcado de completada (RF-34 a RF-36)', () => {
+    const responder = (s: Sesion, id: string, cuerpo: object) =>
+      request(app.getHttpServer())
+        .post(`/api/estudiantes/yo/evaluaciones/${id}/respuestas`)
+        .set('Authorization', `Bearer ${s.token}`)
+        .send(cuerpo);
+    const todas = (valor: number) =>
+      preguntas.map((preguntaId) => ({ preguntaId, valor }));
+    const evaluacion = (id: string) =>
+      fuente
+        .getRepository(Evaluacion)
+        .createQueryBuilder('e')
+        .addSelect(['e.estudiantesCompletaron', 'e.comentariosAnonimos'])
+        .where('e.id = :id', { id })
+        .getOneOrFail();
+    const COMENTARIO =
+      'Explica con mucha claridad y siempre resuelve las dudas del grupo.';
+
+    it('rechaza un comentario de menos de 30 caracteres (RF-35)', async () => {
+      const respuesta = await responder(ana, evaluacionA, {
+        respuestas: todas(5),
+        comentario: 'Muy buen docente.',
+      });
+      expect(respuesta.status).toBe(400);
+      expect(respuesta.body.message).toContain(
+        'El comentario debe tener al menos 30 caracteres.',
+      );
+    });
+
+    it('rechaza valores fuera de la escala de 1 a 5', async () => {
+      const respuesta = await responder(ana, evaluacionA, {
+        respuestas: todas(6),
+      });
+      expect(respuesta.status).toBe(400);
+    });
+
+    it('exige responder todas las preguntas una sola vez', async () => {
+      const incompleta = await responder(ana, evaluacionA, {
+        respuestas: todas(4).slice(1),
+      });
+      expect(incompleta.status).toBe(400);
+      const repetida = await responder(ana, evaluacionA, {
+        respuestas: [...todas(4).slice(1), todas(4)[1]],
+      });
+      expect(repetida.status).toBe(400);
+      expect(
+        await fuente
+          .getRepository(Respuesta)
+          .countBy({ evaluacion: { id: evaluacionA } }),
+      ).toBe(0);
+    });
+
+    it('no deja responder la evaluación de un docente que no le dicta clase', async () => {
+      const respuesta = await responder(ana, evaluacionB, {
+        respuestas: todas(5),
+      });
+      expect(respuesta.status).toBe(404);
+    });
+
+    it('guarda las respuestas sin el estudiante y pasa a EN_PROGRESO', async () => {
+      const respuesta = await responder(ana, evaluacionA, {
+        respuestas: todas(4),
+        comentario: `  ${COMENTARIO}  `,
+      });
+      expect(respuesta.status).toBe(201);
+      expect(respuesta.body).toEqual({ id: evaluacionA, completada: true });
+
+      const columnas = fuente
+        .getMetadata(Respuesta)
+        .columns.map((columna) => columna.databaseName)
+        .sort();
+      expect(columnas).toEqual([
+        'evaluacion_id',
+        'id',
+        'pregunta_id',
+        'valor_numerico',
+      ]);
+      const filas = await fuente
+        .getRepository(Respuesta)
+        .findBy({ evaluacion: { id: evaluacionA } });
+      expect(filas.map((fila) => fila.valorNumerico)).toEqual([4, 4, 4]);
+
+      const guardada = await evaluacion(evaluacionA);
+      expect(guardada.estado).toBe('EN_PROGRESO');
+      expect(guardada.estudiantesCompletaron).toEqual([estudiantes[0]]);
+      expect(guardada.comentariosAnonimos).toEqual([COMENTARIO]);
+    });
+
+    it('impide el doble envío del mismo estudiante (RF-36)', async () => {
+      const respuesta = await responder(ana, evaluacionA, {
+        respuestas: todas(1),
+      });
+      expect(respuesta.status).toBe(409);
+      expect(respuesta.body.message).toBe('Ya respondiste esta evaluación.');
+      expect(
+        await fuente
+          .getRepository(Respuesta)
+          .countBy({ evaluacion: { id: evaluacionA } }),
+      ).toBe(3);
+    });
+
+    it('la lista del estudiante la muestra como completada', async () => {
+      const deAna = await get('/estudiantes/yo/evaluaciones', ana);
+      expect(deAna.body[0]).toMatchObject({
+        id: evaluacionA,
+        completada: true,
+        abierta: true,
+      });
+      const deBeto = await get('/estudiantes/yo/evaluaciones', beto);
+      expect(deBeto.body[0]).toMatchObject({
+        id: evaluacionA,
+        completada: false,
+        abierta: true,
+      });
+    });
+
+    it('pasa a COMPLETADA cuando responde el último estudiante del grupo', async () => {
+      const respuesta = await responder(beto, evaluacionA, {
+        respuestas: todas(5),
+      });
+      expect(respuesta.status).toBe(201);
+      const guardada = await evaluacion(evaluacionA);
+      expect(guardada.estado).toBe('COMPLETADA');
+      expect([...guardada.estudiantesCompletaron].sort()).toEqual(
+        estudiantes.slice(0, 2).sort(),
+      );
+      expect(guardada.comentariosAnonimos).toHaveLength(1);
+    });
+
+    it('la consulta del Administrador no expone quién respondió ni los comentarios', async () => {
+      const respuesta = await get(
+        `/evaluaciones?formularioId=${formularioId}`,
+        admin,
+      );
+      expect(respuesta.status).toBe(200);
+      const texto = JSON.stringify(respuesta.body);
+      expect(texto).not.toContain('estudiantesCompletaron');
+      expect(texto).not.toContain('comentariosAnonimos');
+      expect(texto).not.toContain(estudiantes[0]);
+    });
+
+    it('deja de recibir respuestas cuando la evaluación se cierra', async () => {
+      await fuente.getRepository(Evaluacion).update(evaluacionA, {
+        estudiantesCompletaron: [],
+        estado: 'CERRADA' as never,
+      });
+      const respuesta = await responder(ana, evaluacionA, {
+        respuestas: todas(3),
+      });
+      expect(respuesta.status).toBe(409);
+      expect(respuesta.body.message).toBe(
+        'Esta evaluación ya no recibe respuestas.',
+      );
+      const lista = await get('/estudiantes/yo/evaluaciones', ana);
+      expect(lista.body).toEqual([]);
     });
   });
 });

@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -10,10 +12,17 @@ import {
   EstudianteGrupo,
   Grupo,
   Horario,
+  type AsignacionHorario,
 } from '../../horarios/entidades/index.js';
+import { AuditoriaService } from '../../seguridad/auditoria/auditoria.service.js';
 import { Estudiante } from '../../seguridad/entidades/index.js';
-import { EstadoEvaluacion } from '../entidades/estado-evaluacion.enum.js';
+import {
+  ESTADOS_ABIERTOS,
+  EstadoEvaluacion,
+} from '../entidades/estado-evaluacion.enum.js';
 import { Evaluacion } from '../entidades/evaluacion.entity.js';
+import { Respuesta } from '../entidades/respuesta.entity.js';
+import { ResponderEvaluacionDto } from './respuesta.dto.js';
 
 export interface EvaluacionEstudiante {
   id: string;
@@ -22,6 +31,10 @@ export interface EvaluacionEstudiante {
   /** Grupos del estudiante en los que ese docente le dicta clase. */
   grupos: Array<{ id: string; codigo: string; curso: string }>;
   totalPreguntas: number;
+  /** true si este estudiante ya la respondió (RF-36). */
+  completada: boolean;
+  /** true mientras la evaluación recibe respuestas. */
+  abierta: boolean;
 }
 
 export interface EvaluacionParaResponder extends EvaluacionEstudiante {
@@ -39,6 +52,8 @@ export interface ContextoEstudiante {
   periodoId: string | null;
   /** docenteId -> grupos del estudiante que dicta ese docente. */
   gruposPorDocente: Map<string, Grupo[]>;
+  /** Todas las asignaciones del horario activo. */
+  asignaciones: AsignacionHorario[];
 }
 
 const CON_FORMULARIO = {
@@ -52,21 +67,34 @@ const CON_FORMULARIO = {
  */
 @Injectable()
 export class EvaluacionesEstudianteService {
-  constructor(@InjectDataSource() protected readonly fuente: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly fuente: DataSource,
+    private readonly auditoria: AuditoriaService,
+  ) {}
 
   /** RF-33: evaluaciones abiertas de los docentes de sus grupos. */
   async listar(actor: Actor): Promise<EvaluacionEstudiante[]> {
     const contexto = await this.contexto(actor);
-    const evaluaciones = await this.visibles(this.fuente.manager, contexto);
-    return evaluaciones.map((e) => this.resumir(e, contexto));
+    const tx = this.fuente.manager;
+    const evaluaciones = await this.visibles(tx, contexto);
+    const completadas = await this.completadas(
+      tx,
+      evaluaciones.map((e) => e.id),
+      contexto.estudianteId,
+    );
+    return evaluaciones
+      .map((e) => this.resumir(e, contexto, completadas.has(e.id)))
+      .filter((e) => e.abierta || e.completada);
   }
 
   /** Formulario completo de una evaluación visible, listo para responder (RF-34). */
   async obtener(actor: Actor, id: string): Promise<EvaluacionParaResponder> {
     const contexto = await this.contexto(actor);
-    const evaluacion = await this.visible(this.fuente.manager, contexto, id);
+    const tx = this.fuente.manager;
+    const evaluacion = await this.visible(tx, contexto, id);
+    const completadas = await this.completadas(tx, [id], contexto.estudianteId);
     return {
-      ...this.resumir(evaluacion, contexto),
+      ...this.resumir(evaluacion, contexto, completadas.has(id)),
       dimensiones: ordenar(evaluacion.formulario.dimensiones ?? []).map(
         (dimension) => ({
           id: dimension.id,
@@ -119,7 +147,143 @@ export class EvaluacionesEstudianteService {
       estudianteId: estudiante.id,
       periodoId: horario?.periodo.id ?? null,
       gruposPorDocente,
+      asignaciones: horario?.asignaciones ?? [],
     };
+  }
+
+  /**
+   * RF-34 a RF-36: guarda una respuesta por pregunta sin asociarla al estudiante, agrega el
+   * comentario anónimo y marca la evaluación como completada por él. La fila de la evaluación
+   * se bloquea para que dos envíos simultáneos no cuenten dos veces.
+   */
+  async responder(
+    actor: Actor,
+    id: string,
+    dto: ResponderEvaluacionDto,
+  ): Promise<{ id: string; completada: true }> {
+    await this.fuente.transaction(async (tx) => {
+      const contexto = await this.contexto(actor, tx);
+      const evaluacion = await this.visible(tx, contexto, id);
+      const bloqueada = await tx
+        .getRepository(Evaluacion)
+        .createQueryBuilder('evaluacion')
+        .setLock('pessimistic_write')
+        .addSelect([
+          'evaluacion.estudiantesCompletaron',
+          'evaluacion.comentariosAnonimos',
+        ])
+        .where('evaluacion.id = :id', { id })
+        .getOneOrFail();
+      if (bloqueada.estudiantesCompletaron.includes(contexto.estudianteId)) {
+        throw new ConflictException('Ya respondiste esta evaluación.');
+      }
+      if (!ESTADOS_ABIERTOS.includes(bloqueada.estado)) {
+        throw new ConflictException('Esta evaluación ya no recibe respuestas.');
+      }
+
+      const esperadas = new Set(
+        (evaluacion.formulario.dimensiones ?? []).flatMap((dimension) =>
+          (dimension.preguntas ?? []).map((pregunta) => pregunta.id),
+        ),
+      );
+      const recibidas = new Set(dto.respuestas.map((r) => r.preguntaId));
+      if (
+        recibidas.size !== dto.respuestas.length ||
+        recibidas.size !== esperadas.size ||
+        [...recibidas].some((preguntaId) => !esperadas.has(preguntaId))
+      ) {
+        throw new BadRequestException(
+          'Debes responder todas las preguntas del formulario, una sola vez cada una.',
+        );
+      }
+
+      await tx.getRepository(Respuesta).insert(
+        dto.respuestas.map((respuesta) => ({
+          evaluacion: { id },
+          pregunta: { id: respuesta.preguntaId },
+          valorNumerico: respuesta.valor,
+        })),
+      );
+
+      const completaron = [
+        ...bloqueada.estudiantesCompletaron,
+        contexto.estudianteId,
+      ];
+      const comentarios = [...bloqueada.comentariosAnonimos];
+      if (dto.comentario) {
+        // Posición al azar: el orden de llegada no permite deducir quién lo escribió.
+        const posicion = Math.floor(Math.random() * (comentarios.length + 1));
+        comentarios.splice(posicion, 0, dto.comentario);
+      }
+      const faltan = await this.faltantes(
+        tx,
+        contexto,
+        evaluacion.docente.id,
+        completaron,
+      );
+      await tx.getRepository(Evaluacion).update(id, {
+        estudiantesCompletaron: completaron,
+        comentariosAnonimos: comentarios,
+        estado:
+          faltan === 0
+            ? EstadoEvaluacion.COMPLETADA
+            : bloqueada.estado === EstadoEvaluacion.PENDIENTE
+              ? EstadoEvaluacion.EN_PROGRESO
+              : bloqueada.estado,
+      });
+    });
+    // El Audit Log registra el envío (RNF-11), nunca las respuestas ni el comentario.
+    await this.auditoria.registrar({
+      usuarioId: actor.id,
+      modulo: 'EVALUACION',
+      accion: 'RESPONDER_EVALUACION',
+      detalle: JSON.stringify({ evaluacionId: id }),
+      ip: actor.ip,
+    });
+    return { id, completada: true };
+  }
+
+  /** Cuántos estudiantes de los grupos que dicta el docente faltan por responder. */
+  private async faltantes(
+    tx: EntityManager,
+    contexto: ContextoEstudiante,
+    docenteId: string,
+    completaron: string[],
+  ): Promise<number> {
+    const grupos = [
+      ...new Set(
+        contexto.asignaciones
+          .filter((asignacion) => asignacion.docenteId === docenteId)
+          .map((asignacion) => asignacion.grupoId),
+      ),
+    ];
+    if (grupos.length === 0) return 0;
+    const inscripciones = await tx.getRepository(EstudianteGrupo).find({
+      where: { grupo: { id: In(grupos) }, activo: true },
+      relations: { estudiante: true },
+    });
+    const pendientes = new Set(inscripciones.map((i) => i.estudiante.id));
+    for (const estudianteId of completaron) pendientes.delete(estudianteId);
+    return pendientes.size;
+  }
+
+  /** De las evaluaciones dadas, cuáles ya respondió el estudiante. */
+  private async completadas(
+    tx: EntityManager,
+    ids: string[],
+    estudianteId: string,
+  ): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const filas = await tx
+      .getRepository(Evaluacion)
+      .createQueryBuilder('evaluacion')
+      .select('evaluacion.id')
+      .where('evaluacion.id IN (:...ids)', { ids })
+      .andWhere(':estudianteId = ANY(evaluacion.estudiantesCompletaron)', {
+        estudianteId,
+      })
+      .getMany();
+    return new Set(filas.map((fila) => fila.id));
   }
 
   private condiciones(contexto: ContextoEstudiante) {
@@ -129,11 +293,11 @@ export class EvaluacionesEstudianteService {
         activo: true,
         periodoAcademico: { id: contexto.periodoId! },
       },
-      estado: Not(EstadoEvaluacion.CERRADA),
+      estado: Not(EstadoEvaluacion.ARCHIVADA),
     };
   }
 
-  protected async visibles(
+  private async visibles(
     tx: EntityManager,
     contexto: ContextoEstudiante,
   ): Promise<Evaluacion[]> {
@@ -146,7 +310,7 @@ export class EvaluacionesEstudianteService {
   }
 
   /** La evaluación si el estudiante puede verla; si no, 404 para no revelar que existe. */
-  protected async visible(
+  private async visible(
     tx: EntityManager,
     contexto: ContextoEstudiante,
     id: string,
@@ -166,9 +330,10 @@ export class EvaluacionesEstudianteService {
     return evaluacion;
   }
 
-  protected resumir(
+  private resumir(
     evaluacion: Evaluacion,
     contexto: ContextoEstudiante,
+    completada: boolean,
   ): EvaluacionEstudiante {
     const grupos = contexto.gruposPorDocente.get(evaluacion.docente.id) ?? [];
     return {
@@ -190,6 +355,8 @@ export class EvaluacionesEstudianteService {
         (total, dimension) => total + (dimension.preguntas?.length ?? 0),
         0,
       ),
+      completada,
+      abierta: ESTADOS_ABIERTOS.includes(evaluacion.estado),
     };
   }
 }
