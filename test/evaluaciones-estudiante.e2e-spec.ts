@@ -442,4 +442,51 @@ describe('Evaluaciones del estudiante (e2e, RF-33 a RF-36)', () => {
       expect(lista.body).toEqual([]);
     });
   });
+
+  describe('Consulta y eliminación de evaluaciones (RF-37, RF-38)', () => {
+    it('el Administrador filtra las evaluaciones por docente', async () => {
+      const respuesta = await get(
+        `/evaluaciones?docenteId=${docentes[1]}`,
+        admin,
+      );
+      expect(respuesta.status).toBe(200);
+      expect(respuesta.body.datos.map((e: { id: string }) => e.id)).toEqual([
+        evaluacionB,
+      ]);
+    });
+
+    it('el docente consulta su historial sin ver quién respondió', async () => {
+      const respuesta = await get('/docentes/yo/evaluaciones', profeA);
+      expect(respuesta.status).toBe(200);
+      expect(respuesta.body).toHaveLength(1);
+      expect(respuesta.body[0]).toMatchObject({
+        id: evaluacionA,
+        formulario: { id: formularioId, periodo: { id: periodoId } },
+        respondieron: 0,
+      });
+      expect(JSON.stringify(respuesta.body)).not.toContain('Completaron');
+      const deOtro = await get('/docentes/yo/evaluaciones', ana);
+      expect(deOtro.status).toBe(403);
+    });
+
+    it('eliminar una evaluación elimina sus respuestas (RF-38)', async () => {
+      expect(
+        await fuente
+          .getRepository(Respuesta)
+          .countBy({ evaluacion: { id: evaluacionA } }),
+      ).toBe(6);
+      const respuesta = await request(app.getHttpServer())
+        .delete(`/api/evaluaciones/${evaluacionA}`)
+        .set('Authorization', `Bearer ${admin.token}`);
+      expect(respuesta.status).toBe(204);
+      expect(
+        await fuente
+          .getRepository(Respuesta)
+          .countBy({ evaluacion: { id: evaluacionA } }),
+      ).toBe(0);
+      expect(
+        await fuente.getRepository(Evaluacion).countBy({ id: evaluacionA }),
+      ).toBe(0);
+    });
+  });
 });
