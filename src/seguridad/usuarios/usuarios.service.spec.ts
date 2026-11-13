@@ -6,6 +6,7 @@ import {
   CARGA_MAXIMA_POR_DEFECTO,
   UsuariosService,
 } from './usuarios.service.js';
+import type { AuditoriaService } from '../auditoria/auditoria.service.js';
 
 const actor = { id: 'actor-1', ip: '10.0.0.1' };
 
@@ -49,7 +50,7 @@ function crearFuente(overrides: Record<string, unknown> = {}) {
         create: vi.fn((_: unknown, datos: unknown) => datos),
         save: vi.fn(async (_: unknown, datos: unknown) => ({
           id: 'nuevo-1',
-          ...datos,
+          ...(datos as object),
         })),
         delete: vi.fn().mockResolvedValue(undefined),
         update: vi.fn().mockResolvedValue(undefined),
@@ -60,8 +61,11 @@ function crearFuente(overrides: Record<string, unknown> = {}) {
   } as never;
 }
 
+/** AuditoriaService falso: solo interesa saber si se registró la acción. */
 function crearAuditoria() {
-  return { registrar: vi.fn().mockResolvedValue(undefined) } as never;
+  return {
+    registrar: vi.fn().mockResolvedValue(undefined),
+  } as unknown as AuditoriaService & { registrar: ReturnType<typeof vi.fn> };
 }
 
 describe('aRespuesta', () => {

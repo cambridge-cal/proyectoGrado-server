@@ -1,6 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EstadoEvaluacion } from '../entidades/estado-evaluacion.enum.js';
 import { EvaluacionesService } from './evaluaciones.service.js';
+import type { AuditoriaService } from '../../seguridad/auditoria/auditoria.service.js';
 
 const docente = { id: 'd-1', usuario: { id: 'u-1', nombre: 'Ana' } };
 const formulario = { id: 'f-1', nombre: 'Evaluación 2026-II' };
@@ -50,8 +51,11 @@ function crearFuente(overrides: Record<string, unknown> = {}) {
   } as never;
 }
 
+/** AuditoriaService falso: solo interesa saber si se registró la acción. */
 function crearAuditoria() {
-  return { registrar: vi.fn().mockResolvedValue(undefined) } as never;
+  return {
+    registrar: vi.fn().mockResolvedValue(undefined),
+  } as unknown as AuditoriaService & { registrar: ReturnType<typeof vi.fn> };
 }
 
 const actor = { id: 'u-1', rol: 'ADMIN' as never, ip: '127.0.0.1' };
@@ -85,7 +89,9 @@ describe('EvaluacionesService', () => {
     it('crea evaluación en estado PENDIENTE', async () => {
       const fuente = crearFuente();
       const repo = (fuente as any).getRepository();
-      repo.findOne.mockResolvedValueOnce(null).mockResolvedValue(evaluacionBase);
+      repo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(evaluacionBase);
       repo.findOneBy
         .mockResolvedValueOnce(formulario)
         .mockResolvedValueOnce(docente);
@@ -165,19 +171,48 @@ describe('EvaluacionesService', () => {
   });
 
   describe('cambiarEstado', () => {
-    it('actualiza el estado y registra auditoría', async () => {
+    const fuenteCon = (estado: EstadoEvaluacion) => {
+      const fuente = crearFuente();
+      const repo = (fuente as any).getRepository();
+      repo.findOne.mockResolvedValue({ ...evaluacionBase, estado });
+      repo.update = vi.fn().mockResolvedValue({ affected: 1 });
+      return { fuente, repo };
+    };
+
+    it('cierra una evaluación analizada y registra auditoría', async () => {
       const auditoria = crearAuditoria();
-      const servicio = new EvaluacionesService(crearFuente(), auditoria);
-      const resultado = await servicio.cambiarEstado(
+      const { fuente, repo } = fuenteCon(EstadoEvaluacion.ANALIZADA);
+      const servicio = new EvaluacionesService(fuente, auditoria);
+      await servicio.cambiarEstado(
         'e-1',
-        { estado: EstadoEvaluacion.EN_CURSO },
+        { estado: EstadoEvaluacion.CERRADA },
         actor,
       );
-      expect(resultado).toBeDefined();
+      expect(repo.update).toHaveBeenCalledWith(
+        { id: 'e-1' },
+        { estado: EstadoEvaluacion.CERRADA },
+      );
       expect(auditoria.registrar).toHaveBeenCalledWith(
         expect.objectContaining({ accion: 'CAMBIAR_ESTADO_EVALUACION' }),
       );
     });
+
+    it.each([
+      [EstadoEvaluacion.PENDIENTE, EstadoEvaluacion.EN_PROGRESO],
+      [EstadoEvaluacion.EN_PROGRESO, EstadoEvaluacion.COMPLETADA],
+      [EstadoEvaluacion.ANALIZADA, EstadoEvaluacion.PENDIENTE],
+      [EstadoEvaluacion.CERRADA, EstadoEvaluacion.ANALIZADA],
+    ])(
+      'rechaza la transición manual de %s a %s (Figura 6.15)',
+      async (desde, hacia) => {
+        const { fuente, repo } = fuenteCon(desde);
+        const servicio = new EvaluacionesService(fuente, crearAuditoria());
+        await expect(
+          servicio.cambiarEstado('e-1', { estado: hacia }, actor),
+        ).rejects.toThrow(ConflictException);
+        expect(repo.update).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('eliminar', () => {
