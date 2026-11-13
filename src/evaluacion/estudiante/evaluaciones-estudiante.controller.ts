@@ -21,6 +21,7 @@ import {
   Roles,
   UsuarioActual,
 } from '../../seguridad/autorizacion/decoradores.js';
+import { KddService } from '../kdd/kdd.service.js';
 import { Rol } from '../../seguridad/entidades/index.js';
 import { ResponderEvaluacionDto } from './respuesta.dto.js';
 import { EvaluacionesEstudianteService } from './evaluaciones-estudiante.service.js';
@@ -31,7 +32,10 @@ import { EvaluacionesEstudianteService } from './evaluaciones-estudiante.service
 @Roles(Rol.ESTUDIANTE)
 @Controller('estudiantes/yo/evaluaciones')
 export class EvaluacionesEstudianteController {
-  constructor(private readonly servicio: EvaluacionesEstudianteService) {}
+  constructor(
+    private readonly servicio: EvaluacionesEstudianteService,
+    private readonly kdd: KddService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -65,12 +69,15 @@ export class EvaluacionesEstudianteController {
   @ApiConflictResponse({
     description: 'Ya la respondió o la evaluación ya no recibe respuestas.',
   })
-  responder(
+  async responder(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResponderEvaluacionDto,
     @UsuarioActual() u: PayloadAccess,
     @Req() r: Request,
   ) {
-    return this.servicio.responder(actorDe(u, r), id, dto);
+    const envio = await this.servicio.responder(actorDe(u, r), id, dto);
+    // RF-39: si con este envío terminó un grupo, el pipeline KDD recalcula el resultado.
+    await this.kdd.alResponder(id);
+    return envio;
   }
 }

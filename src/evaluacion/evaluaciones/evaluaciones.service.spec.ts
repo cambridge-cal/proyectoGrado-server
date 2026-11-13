@@ -85,7 +85,9 @@ describe('EvaluacionesService', () => {
     it('crea evaluación en estado PENDIENTE', async () => {
       const fuente = crearFuente();
       const repo = (fuente as any).getRepository();
-      repo.findOne.mockResolvedValueOnce(null).mockResolvedValue(evaluacionBase);
+      repo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(evaluacionBase);
       repo.findOneBy
         .mockResolvedValueOnce(formulario)
         .mockResolvedValueOnce(docente);
@@ -165,19 +167,48 @@ describe('EvaluacionesService', () => {
   });
 
   describe('cambiarEstado', () => {
-    it('actualiza el estado y registra auditoría', async () => {
+    const fuenteCon = (estado: EstadoEvaluacion) => {
+      const fuente = crearFuente();
+      const repo = (fuente as any).getRepository();
+      repo.findOne.mockResolvedValue({ ...evaluacionBase, estado });
+      repo.update = vi.fn().mockResolvedValue({ affected: 1 });
+      return { fuente, repo };
+    };
+
+    it('cierra una evaluación analizada y registra auditoría', async () => {
       const auditoria = crearAuditoria();
-      const servicio = new EvaluacionesService(crearFuente(), auditoria);
-      const resultado = await servicio.cambiarEstado(
+      const { fuente, repo } = fuenteCon(EstadoEvaluacion.ANALIZADA);
+      const servicio = new EvaluacionesService(fuente, auditoria);
+      await servicio.cambiarEstado(
         'e-1',
-        { estado: EstadoEvaluacion.EN_PROGRESO },
+        { estado: EstadoEvaluacion.CERRADA },
         actor,
       );
-      expect(resultado).toBeDefined();
-      expect(auditoria.registrar).toHaveBeenCalledWith(
+      expect(repo.update).toHaveBeenCalledWith(
+        { id: 'e-1' },
+        { estado: EstadoEvaluacion.CERRADA },
+      );
+      expect((auditoria as any).registrar).toHaveBeenCalledWith(
         expect.objectContaining({ accion: 'CAMBIAR_ESTADO_EVALUACION' }),
       );
     });
+
+    it.each([
+      [EstadoEvaluacion.PENDIENTE, EstadoEvaluacion.EN_PROGRESO],
+      [EstadoEvaluacion.EN_PROGRESO, EstadoEvaluacion.COMPLETADA],
+      [EstadoEvaluacion.ANALIZADA, EstadoEvaluacion.PENDIENTE],
+      [EstadoEvaluacion.CERRADA, EstadoEvaluacion.ANALIZADA],
+    ])(
+      'rechaza la transición manual de %s a %s (Figura 6.15)',
+      async (desde, hacia) => {
+        const { fuente, repo } = fuenteCon(desde);
+        const servicio = new EvaluacionesService(fuente, crearAuditoria());
+        await expect(
+          servicio.cambiarEstado('e-1', { estado: hacia }, actor),
+        ).rejects.toThrow(ConflictException);
+        expect(repo.update).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('eliminar', () => {

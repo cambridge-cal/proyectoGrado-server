@@ -401,13 +401,14 @@ describe('Evaluaciones del estudiante (e2e, RF-33 a RF-36)', () => {
       });
     });
 
-    it('pasa a COMPLETADA cuando responde el último estudiante del grupo', async () => {
+    it('cuando responde el último estudiante se completa y el KDD automático la analiza (RF-39)', async () => {
       const respuesta = await responder(beto, evaluacionA, {
         respuestas: todas(5),
       });
       expect(respuesta.status).toBe(201);
       const guardada = await evaluacion(evaluacionA);
-      expect(guardada.estado).toBe('COMPLETADA');
+      // COMPLETADA -> ANALIZADA: el envío dispara el pipeline KDD (Figura 6.15).
+      expect(guardada.estado).toBe('ANALIZADA');
       expect([...guardada.estudiantesCompletaron].sort()).toEqual(
         estudiantes.slice(0, 2).sort(),
       );

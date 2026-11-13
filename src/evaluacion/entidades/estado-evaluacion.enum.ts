@@ -22,3 +22,15 @@ export const ESTADOS_ABIERTOS: readonly EstadoEvaluacion[] = [
   EstadoEvaluacion.EN_PROGRESO,
   EstadoEvaluacion.COMPLETADA,
 ];
+
+/**
+ * Transiciones que el Administrador puede hacer a mano (Figura 6.15). Las demás las hace el
+ * sistema: el envío de respuestas (RF-36) y el pipeline KDD (RF-39).
+ */
+export const TRANSICIONES_MANUALES: Readonly<
+  Partial<Record<EstadoEvaluacion, readonly EstadoEvaluacion[]>>
+> = {
+  [EstadoEvaluacion.ANALIZADA]: [EstadoEvaluacion.CERRADA],
+  [EstadoEvaluacion.ALERTA]: [EstadoEvaluacion.CERRADA],
+  [EstadoEvaluacion.CERRADA]: [EstadoEvaluacion.ARCHIVADA],
+};

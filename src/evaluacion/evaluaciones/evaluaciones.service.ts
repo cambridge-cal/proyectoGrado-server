@@ -10,7 +10,10 @@ import { patronBusqueda } from '../../compartido/errores-bd.js';
 import { desplazamiento, Pagina } from '../../compartido/paginacion.js';
 import { AuditoriaService } from '../../seguridad/auditoria/auditoria.service.js';
 import { Docente } from '../../seguridad/entidades/docente.entity.js';
-import { EstadoEvaluacion } from '../entidades/estado-evaluacion.enum.js';
+import {
+  EstadoEvaluacion,
+  TRANSICIONES_MANUALES,
+} from '../entidades/estado-evaluacion.enum.js';
 import { Evaluacion } from '../entidades/evaluacion.entity.js';
 import { Formulario } from '../entidades/formulario.entity.js';
 import {
@@ -83,7 +86,10 @@ export class EvaluacionesService {
     const evaluacion = await this.repo.findOne({
       where: { id },
       relations: {
-        formulario: { periodoAcademico: true, dimensiones: { preguntas: true } },
+        formulario: {
+          periodoAcademico: true,
+          dimensiones: { preguntas: true },
+        },
         docente: { usuario: true },
       },
     });
@@ -119,7 +125,10 @@ export class EvaluacionesService {
     }));
   }
 
-  async asignar(datos: AsignarEvaluacionDto, actor: Actor): Promise<Evaluacion> {
+  async asignar(
+    datos: AsignarEvaluacionDto,
+    actor: Actor,
+  ): Promise<Evaluacion> {
     const formulario = await this.formulario(datos.formularioId);
     const docente = await this.docente(datos.docenteId);
 
@@ -202,8 +211,14 @@ export class EvaluacionesService {
     actor: Actor,
   ): Promise<Evaluacion> {
     const evaluacion = await this.obtener(id);
-    evaluacion.estado = datos.estado;
-    await this.repo.save(evaluacion);
+    const permitidos = TRANSICIONES_MANUALES[evaluacion.estado] ?? [];
+    if (!permitidos.includes(datos.estado))
+      throw new ConflictException(
+        permitidos.length > 0
+          ? `Una evaluación ${evaluacion.estado} solo puede pasar a ${permitidos.join(' o ')}.`
+          : `Una evaluación ${evaluacion.estado} no se cambia de estado a mano: avanza con las respuestas de los estudiantes y con el pipeline KDD.`,
+      );
+    await this.repo.update({ id }, { estado: datos.estado });
     await this.registrar(actor, 'CAMBIAR_ESTADO_EVALUACION', {
       evaluacionId: id,
       estado: datos.estado,
@@ -225,17 +240,13 @@ export class EvaluacionesService {
     const formulario = await this.fuente
       .getRepository(Formulario)
       .findOneBy({ id });
-    if (!formulario)
-      throw new NotFoundException('El formulario no existe.');
+    if (!formulario) throw new NotFoundException('El formulario no existe.');
     return formulario;
   }
 
   private async docente(id: string): Promise<Docente> {
-    const docente = await this.fuente
-      .getRepository(Docente)
-      .findOneBy({ id });
-    if (!docente)
-      throw new NotFoundException('El docente no existe.');
+    const docente = await this.fuente.getRepository(Docente).findOneBy({ id });
+    if (!docente) throw new NotFoundException('El docente no existe.');
     return docente;
   }
 
