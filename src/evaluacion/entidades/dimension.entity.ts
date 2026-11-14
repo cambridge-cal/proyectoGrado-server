@@ -32,6 +32,10 @@ export class Dimension {
   @Column({ type: 'int' })
   orden: number;
 
+  /** Peso porcentual en el puntaje global (RF-29). Los pesos de un formulario suman 100. */
+  @Column({ type: 'int', default: 0 })
+  peso: number;
+
   @OneToMany('Pregunta', (pregunta: Pregunta) => pregunta.dimension, {
     cascade: true,
   })

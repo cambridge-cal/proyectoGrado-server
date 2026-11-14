@@ -37,24 +37,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run test:cov
-      - name: Verificar umbral de cobertura
-        run: |
-          node -e "
-            const r = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json','utf8'));
-            const pct = r.total.lines.pct;
-            console.log('Cobertura de líneas: ' + pct + '%');
-            if (pct < 60) { console.error('Por debajo del umbral mínimo (60%)'); process.exit(1); }
-          "
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 14
+      - run: npm test
 
   e2e-tests:
-    name: Pruebas e2e
+    name: Pruebas e2e y cobertura
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -90,4 +76,21 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run test:e2e
+      # Unitarias y e2e juntas, una suite a la vez: comparten la base de datos y cada una
+      # sincroniza el esquema al arrancar. La cobertura se mide sobre el conjunto porque
+      # los servicios que usan PostgreSQL se prueban sobre todo con e2e.
+      - run: npm run test:cov:total
+      - name: Verificar umbral de cobertura
+        run: |
+          node -e "
+            const r = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json','utf8'));
+            const pct = r.total.lines.pct;
+            console.log('Cobertura de líneas: ' + pct + '%');
+            if (pct < 60) { console.error('Por debajo del umbral mínimo (60%)'); process.exit(1); }
+          "
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14

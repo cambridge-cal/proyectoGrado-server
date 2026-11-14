@@ -7,5 +7,8 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // Todas las suites comparten una base de datos y cada una sincroniza el esquema al
+    // arrancar: en paralelo chocan al crear las tablas (deadlock, tipos duplicados).
+    fileParallelism: false,
   },
 });
