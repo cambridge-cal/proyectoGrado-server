@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import type { Actor } from '../../compartido/actor.js';
@@ -11,9 +15,35 @@ import { Formulario } from '../entidades/formulario.entity.js';
 import { Pregunta } from '../entidades/pregunta.entity.js';
 import {
   ActualizarFormularioDto,
+  CrearDimensionDto,
   CrearFormularioDto,
   FiltrosFormulariosDto,
 } from './formulario.dto.js';
+
+/** RF-29: los pesos de las dimensiones de un formulario suman exactamente 100. */
+function validarPesos(dimensiones: CrearDimensionDto[]): void {
+  const suma = dimensiones.reduce((total, dim) => total + dim.peso, 0);
+  if (suma !== 100)
+    throw new BadRequestException(
+      `Los pesos de las dimensiones deben sumar 100 (suman ${suma}).`,
+    );
+}
+
+function construirDimensiones(dimensiones: CrearDimensionDto[]): Dimension[] {
+  return dimensiones.map((dim) => {
+    const dimension = new Dimension();
+    dimension.nombre = dim.nombre;
+    dimension.orden = dim.orden;
+    dimension.peso = dim.peso;
+    dimension.preguntas = dim.preguntas.map((preg) => {
+      const pregunta = new Pregunta();
+      pregunta.texto = preg.texto;
+      pregunta.orden = preg.orden;
+      return pregunta;
+    });
+    return dimension;
+  });
+}
 
 /** Formularios de evaluación docente (RF-28, RF-29, RF-30). */
 @Injectable()
@@ -70,23 +100,13 @@ export class FormulariosService {
   }
 
   async crear(datos: CrearFormularioDto, actor: Actor): Promise<Formulario> {
+    validarPesos(datos.dimensiones);
     const periodo = await this.periodo(datos.periodoAcademicoId);
 
     const formulario = this.repo.create({
       nombre: datos.nombre,
       periodoAcademico: periodo,
-      dimensiones: datos.dimensiones.map((dim) => {
-        const dimension = new Dimension();
-        dimension.nombre = dim.nombre;
-        dimension.orden = dim.orden;
-        dimension.preguntas = dim.preguntas.map((preg) => {
-          const pregunta = new Pregunta();
-          pregunta.texto = preg.texto;
-          pregunta.orden = preg.orden;
-          return pregunta;
-        });
-        return dimension;
-      }),
+      dimensiones: construirDimensiones(datos.dimensiones),
     });
 
     const guardado = await this.repo.save(formulario);
@@ -112,22 +132,12 @@ export class FormulariosService {
       );
 
     if (datos.dimensiones) {
+      validarPesos(datos.dimensiones);
       await this.fuente.getRepository(Dimension).delete({
         formulario: { id },
       });
 
-      formulario.dimensiones = datos.dimensiones.map((dim) => {
-        const dimension = new Dimension();
-        dimension.nombre = dim.nombre;
-        dimension.orden = dim.orden;
-        dimension.preguntas = dim.preguntas.map((preg) => {
-          const pregunta = new Pregunta();
-          pregunta.texto = preg.texto;
-          pregunta.orden = preg.orden;
-          return pregunta;
-        });
-        return dimension;
-      });
+      formulario.dimensiones = construirDimensiones(datos.dimensiones);
     }
 
     await this.repo.save(formulario);

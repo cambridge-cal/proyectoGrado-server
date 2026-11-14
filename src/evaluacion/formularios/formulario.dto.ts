@@ -50,6 +50,17 @@ export class CrearDimensionDto {
   @Max(100)
   orden: number;
 
+  @ApiProperty({
+    example: 40,
+    description:
+      'Peso porcentual de la dimensión en el puntaje global (RF-29). Los pesos del formulario deben sumar 100.',
+  })
+  @Type(() => Number)
+  @IsInt({ message: 'El peso debe ser un número entero.' })
+  @Min(1, { message: 'El peso mínimo de una dimensión es 1.' })
+  @Max(100, { message: 'El peso máximo de una dimensión es 100.' })
+  peso: number;
+
   @ApiProperty({ type: [CrearPreguntaDto] })
   @IsArray()
   @ArrayMinSize(1)
@@ -67,7 +78,9 @@ export class CrearFormularioDto {
   nombre: string;
 
   @ApiProperty({ format: 'uuid' })
-  @IsUUID('4', { message: 'periodoAcademicoId debe ser un identificador válido.' })
+  @IsUUID('4', {
+    message: 'periodoAcademicoId debe ser un identificador válido.',
+  })
   periodoAcademicoId: string;
 
   @ApiProperty({ type: [CrearDimensionDto] })
