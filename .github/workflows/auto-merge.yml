@@ -24,6 +24,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr merge ${{ github.event.pull_request.number }} \
+          # Mientras el repositorio no tenga activado "Allow auto-merge", avisa sin fallar.
+          if salida=$(gh pr merge ${{ github.event.pull_request.number }} \
             --auto --squash \
-            --repo ${{ github.repository }}
+            --repo ${{ github.repository }} 2>&1); then
+            echo "$salida"
+          elif grep -q 'enablePullRequestAutoMerge' <<<"$salida"; then
+            echo "::notice::El repositorio no permite auto-merge: falta activar Allow auto-merge en Settings > General."
+          else
+            echo "$salida"
+            exit 1
+          fi

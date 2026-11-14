@@ -68,7 +68,7 @@ Se ejecuta en `pull_request` (opened, edited, synchronize, reopened). Un solo jo
 
 ### `auto-merge.yml`
 
-Se ejecuta en `pull_request`. Habilita auto-merge con Squash usando `gh pr merge --auto --squash` y el `GITHUB_TOKEN`. El merge solo ocurre cuando todos los checks requeridos pasan y las reglas de protección de rama se cumplen.
+Se ejecuta en `pull_request`. Habilita auto-merge con Squash usando `gh pr merge --auto --squash` y el `GITHUB_TOKEN`. El merge solo ocurre cuando todos los checks requeridos pasan y las reglas de protección de rama se cumplen. Mientras el repositorio no tenga activado «Allow auto-merge», el job lo avisa y termina sin fallar.
 
 ### `cd.yml`
 
