@@ -6,10 +6,12 @@ Verificación de punta a punta de los flujos de las Figuras 6.4, 6.6 y 6.17. Cad
 
 ```bash
 docker compose up -d
-npm run test:e2e -- --no-file-parallelism
+npm run test:e2e
 ```
 
-Las suites comparten la base de datos y `POST /horarios/generar` programa todos los grupos registrados, no solo los de la prueba. Por eso deben correr una a la vez: en paralelo, los grupos de otras suites vuelven infactible el horario de la regresión.
+Las suites comparten la base de datos y `POST /horarios/generar` programa todos los grupos registrados, no solo los de la prueba. Por eso corren una a la vez (`fileParallelism: false` en `vitest.config.e2e.ts`): en paralelo, los grupos de otras suites vuelven infactible el horario de la regresión.
+
+La regresión de la Figura 6.6 crea su propio período activo, para que el KDD manual solo toque sus evaluaciones, y al terminar vuelve a activar el período que estaba activo.
 
 ## Cobertura por figura
 
@@ -31,6 +33,24 @@ Suite: [`test/regresion-horario.e2e-spec.ts`](../test/regresion-horario.e2e-spec
 
 En cada horario generado la suite vuelve a comprobar las restricciones duras de RF-18 contra la base de datos, sin usar el motor: cruces de docente, aula y grupo, disponibilidad del docente y capacidad del aula.
 
+### Figura 6.6 · Evaluación docente
+
+Suite: [`test/regresion-evaluacion.e2e-spec.ts`](../test/regresion-evaluacion.e2e-spec.ts). Dos estudiantes inscritos por la API en dos grupos evalúan a los dos docentes que les dictan clase: uno termina bien evaluado y el otro bajo el umbral.
+
+| Paso o decisión de la figura | Prueba |
+|---|---|
+| El Administrador crea el formulario y lo asigna, una evaluación por docente | `el Administrador crea el formulario y lo asigna: una evaluación PENDIENTE por docente` |
+| Los estudiantes ven las evaluaciones de los docentes de sus grupos | `cada estudiante ve solo las evaluaciones de los docentes de sus grupos` |
+| El estudiante responde de forma anónima; ¿completó todo el grupo? No | `la primera respuesta se guarda anónima y la evaluación queda EN_PROGRESO sin resultado` |
+| ¿Completó todo el grupo? Sí: el pipeline KDD recalcula solo; puntaje sobre el umbral | `cuando responde todo el grupo el KDD se ejecuta solo y publica el resultado` |
+| ¿Puntaje global bajo el umbral? Sí: generar alerta | `un puntaje bajo el umbral genera la alerta y deja la evaluación en ALERTA` |
+| El Administrador solicita la reejecución manual | `la reejecución manual recalcula sin duplicar resultados ni alertas` |
+| El Administrador revisa la alerta | `el Administrador revisa la alerta y la evaluación se cierra` |
+| Resultados disponibles en el dashboard del docente | `cada docente ve en su dashboard solo su resultado y los comentarios anónimos` |
+| Cierre del período de evaluación | `al cierre las evaluaciones se archivan y dejan de recibir respuestas` |
+
+El anonimato (RNF-10) se comprueba en tres lugares: la tabla `respuesta` no tiene ninguna columna del estudiante, el detalle que ve el Administrador no incluye su identificador y el registro de auditoría solo guarda el id de la evaluación.
+
 ### Figura 6.17 · Inscripción de estudiante a grupo
 
 Suite: [`test/regresion-inscripcion.e2e-spec.ts`](../test/regresion-inscripcion.e2e-spec.ts). Un estudiante creado por el Administrador inicia sesión y recorre el diagrama en orden.
@@ -48,29 +68,27 @@ Suite: [`test/regresion-inscripcion.e2e-spec.ts`](../test/regresion-inscripcion.
 
 El modal de confirmación de la baja es del cliente web; en el servidor se verifica que solo se acepta `activo = false`.
 
-### Figura 6.6 · Evaluación docente
-
-Pendiente. El flujo completo (respuestas anónimas, estados, pipeline KDD y alertas) llega con TKT-032 a TKT-039, que todavía no están en `main`. La suite se agrega cuando se integren.
-
 ## Resultados
 
-Ejecución del 14 de noviembre de 2026 sobre `main` (`6020866`), con PostgreSQL 15 y las suites en serie.
+Ejecución del 14 de noviembre de 2026 sobre el código de `main` (`290527e`), con PostgreSQL 15.
 
 | Conjunto | Suites | Pruebas | Resultado |
 |---|---|---|---|
-| Unitarias (`npm test`) | 25 | 184 | Todas pasan |
-| e2e existentes | 9 | 45 | Todas pasan |
+| Unitarias (`npm test`) | 27 | 202 | Todas pasan |
+| e2e existentes | 12 | 76 | Todas pasan |
 | Regresión Figura 6.4 | 1 | 8 | Todas pasan |
+| Regresión Figura 6.6 | 1 | 9 | Todas pasan |
 | Regresión Figura 6.17 | 1 | 8 | Todas pasan |
 
-Las suites de regresión no dejan datos en la base al terminar.
+Con `npm run test:cov:total`, la cobertura de líneas es del 92,8 %. Las suites de regresión no dejan datos en la base al terminar.
 
 ## Hallazgos
 
+No se encontraron defectos funcionales en los flujos de las Figuras 6.4, 6.6 y 6.17.
+
 | # | Prioridad | Hallazgo | Estado |
 |---|---|---|---|
-| 1 | Alta | El CI de `main` falla en sus tres trabajos: `tsc --noEmit` da 9 errores de tipos en tres archivos de pruebas, el paso de cobertura no encuentra `coverage/coverage-summary.json` y las e2e chocan al correr en paralelo. | Corregido en la rama de TKT-032 a TKT-039; se cierra cuando se integre. |
-| 2 | Media | Las e2e dependen de correr en serie, porque la generación de horarios programa todos los grupos de la base. | Documentado arriba. |
+| 1 | Alta | `npm audit --audit-level=high` falla en el workflow de Seguridad: 5 vulnerabilidades altas. Tres en producción (`@nestjs/platform-express` con `multer` y `body-parser`) y dos en desarrollo (`tmp` y `undici`, por `@nestjs/mau`). | Abierto, para TKT-046. |
+| 2 | Media | El escaneo de secretos (gitleaks) falla porque la organización no tiene el secreto `GITLEAKS_LICENSE`. | Abierto; requiere un administrador del repositorio. |
 | 3 | Baja | `oxlint` advierte un import sin usar (`Type`) en `src/evaluacion/evaluaciones/evaluacion.dto.ts`. | Abierto, para TKT-046. |
-
-No se encontraron defectos funcionales en los flujos de las Figuras 6.4 y 6.17.
+| 4 | Informativo | Las e2e dependen de correr en serie, porque la generación de horarios programa todos los grupos de la base. | Documentado arriba. |
