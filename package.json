@@ -66,5 +66,11 @@
     "typescript": "^6.0.2",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^4.1.2"
+  },
+  "overrides": {
+    "@nestjs/mau": {
+      "tmp": "^0.2.7",
+      "undici": "^6.29.1"
+    }
   }
 }
