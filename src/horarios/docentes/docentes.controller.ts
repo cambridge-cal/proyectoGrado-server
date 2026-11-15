@@ -86,6 +86,7 @@ export class DocentesController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Consulta un docente por su identificador' })
   obtener(@Param('id', ParseUUIDPipe) id: string) {
     return this.docentes.obtener(id);
   }
@@ -104,6 +105,7 @@ export class DocentesController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Actualiza un docente' })
   actualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: ActualizarDocenteDto,
@@ -114,6 +116,7 @@ export class DocentesController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Elimina un docente' })
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(
     @Param('id', ParseUUIDPipe) id: string,

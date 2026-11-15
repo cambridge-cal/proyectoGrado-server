@@ -257,8 +257,17 @@ export class UsuariosService {
               SALT_ROUNDS,
             ),
             activo: false,
+            autorizacionDatosEn: null,
+            versionAvisoPrivacidad: null,
           },
         );
+        // El código de estudiante también identifica al titular (RNF-32).
+        if (usuario.estudiante)
+          await tx.update(
+            Estudiante,
+            { id: usuario.estudiante.id },
+            { codigo: `ELIMINADO-${id.slice(0, 13)}` },
+          );
       });
     }
 

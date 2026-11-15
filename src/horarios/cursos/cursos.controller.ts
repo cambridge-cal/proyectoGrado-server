@@ -48,11 +48,13 @@ export class CursosController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Consulta un curso por su identificador' })
   obtener(@Param('id', ParseUUIDPipe) id: string) {
     return this.servicio.obtener(id);
   }
 
   @Post()
+  @ApiOperation({ summary: 'Crea un curso' })
   @ApiConflictResponse({ description: 'Dato único repetido.' })
   crear(
     @Body() datos: CrearCursoDto,
@@ -63,6 +65,7 @@ export class CursosController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Actualiza un curso' })
   actualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: ActualizarCursoDto,
@@ -73,6 +76,7 @@ export class CursosController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Elimina un curso' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiConflictResponse({ description: 'El curso está en uso.' })
   async eliminar(

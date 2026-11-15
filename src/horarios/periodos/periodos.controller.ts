@@ -48,6 +48,9 @@ export class PeriodosController {
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Consulta un período académico por su identificador',
+  })
   obtener(@Param('id', ParseUUIDPipe) id: string) {
     return this.periodos.obtener(id);
   }
@@ -66,6 +69,7 @@ export class PeriodosController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Actualiza un período académico' })
   actualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: ActualizarPeriodoDto,
@@ -76,6 +80,7 @@ export class PeriodosController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Elimina un período académico' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiConflictResponse({ description: 'El período está en uso.' })
   async eliminar(

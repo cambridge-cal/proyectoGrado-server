@@ -8,7 +8,7 @@ API REST del Sistema CAL, el software de generación automática de horarios con
 - PostgreSQL 15 en Docker, con TypeORM
 - JWT y bcrypt para autenticación
 - Algoritmo Genético y Búsqueda Tabú para la optimización de horarios
-- API de Gemini 3.1 Pro (`@google/genai`) para la validación semántica
+- API de Gemini 2.5 Flash (`@google/genai`) para la validación semántica
 
 ## Requisitos
 
@@ -65,6 +65,10 @@ API REST del Sistema CAL, el software de generación automática de horarios con
    - Estado del servidor: <http://localhost:3000/api/salud>
    - Documentación Swagger: <http://localhost:3000/api/docs>
 
+### Validación con Gemini
+
+Para que los horarios pasen por la validación semántica, pon en `.env` la clave en `GEMINI_API_KEY` (se obtiene en <https://aistudio.google.com/apikey>). El modelo por defecto es `gemini-2.5-flash`, que funciona en el plan gratuito. Sin clave el sistema funciona igual y guarda los horarios como no validados (RNF-18).
+
 ### Correo de recuperación de contraseña
 
 El enlace de "¿Olvidaste tu contraseña?" (RF-04) se envía por el SMTP de Gmail. Para activarlo, en `.env` pon el correo de la cuenta en `SMTP_USER` y en `SMTP_PASS` una contraseña de aplicación de Google (<https://myaccount.google.com/apppasswords>, requiere la verificación en dos pasos). Mientras `SMTP_USER` esté vacío, en desarrollo el enlace aparece en la consola del servidor.
@@ -92,12 +96,20 @@ docs/diagramas/      Código fuente de las 17 figuras de la tesis
 | `npm run build` | Compila a `dist/` |
 | `npm run semilla` | Crea los usuarios de prueba (solo en desarrollo) |
 | `npm run test` | Pruebas unitarias |
-| `npm run test:cov` | Pruebas con cobertura |
+| `npm run test:cov` | Pruebas unitarias con cobertura |
+| `npm run test:cov:total` | Unitarias y e2e juntas con cobertura; es lo que mide el CI |
 | `npm run test:e2e` | Pruebas de extremo a extremo (requieren la base de datos) |
 | `npm run lint` | Análisis estático |
 
 ## Documentación
 
+- API: Swagger en <http://localhost:3000/api/docs>, con todos los endpoints descritos (RNF-22)
+- Guía de uso para el Administrador: [`docs/guia-administrador.md`](docs/guia-administrador.md)
+- Despliegue en producción: [`docs/produccion.md`](docs/produccion.md)
+- Integración y despliegue continuos: [`docs/ci-cd.md`](docs/ci-cd.md)
+- Protección de datos personales: [`docs/cumplimiento-datos-personales.md`](docs/cumplimiento-datos-personales.md)
+- QA de regresión: [`docs/qa-regresion.md`](docs/qa-regresion.md)
+- Rendimiento del motor de IA: [`docs/rendimiento-motor.md`](docs/rendimiento-motor.md)
 - Diagramas del sistema: [`docs/diagramas`](docs/diagramas/README.md)
 - Forma de trabajo, ramas y commits: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 

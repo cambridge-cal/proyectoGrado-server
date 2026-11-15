@@ -48,6 +48,7 @@ export class GruposController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Consulta un grupo por su identificador' })
   obtener(@Param('id', ParseUUIDPipe) id: string) {
     return this.servicio.obtener(id);
   }
@@ -66,6 +67,7 @@ export class GruposController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Actualiza un grupo' })
   actualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: ActualizarGrupoDto,
@@ -88,6 +90,7 @@ export class GruposController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Elimina un grupo' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiConflictResponse({ description: 'El grupo está en uso.' })
   async eliminar(

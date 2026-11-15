@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Publico } from './seguridad/autorizacion/decoradores.js';
 
 @Publico()
@@ -7,6 +7,9 @@ import { Publico } from './seguridad/autorizacion/decoradores.js';
 @Controller('salud')
 export class AppController {
   @Get()
+  @ApiOperation({
+    summary: 'Comprueba que el servidor está en funcionamiento (público)',
+  })
   @ApiOkResponse({ description: 'El servidor está en funcionamiento.' })
   verificarSalud(): { estado: string } {
     return { estado: 'ok' };

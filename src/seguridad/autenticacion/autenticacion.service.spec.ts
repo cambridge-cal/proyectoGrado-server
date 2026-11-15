@@ -8,6 +8,7 @@ import {
   AutenticacionService,
   MENSAJE_CREDENCIALES_INVALIDAS,
   SALT_ROUNDS,
+  VERSION_AVISO_PRIVACIDAD,
 } from './autenticacion.service.js';
 import {
   hashRefreshToken,
@@ -28,7 +29,11 @@ function crearServicio(usuario: Record<string, unknown> | null) {
     where: vi.fn().mockReturnThis(),
     getOne: vi.fn().mockResolvedValue(usuario),
   };
-  const usuarios = { createQueryBuilder: vi.fn(() => consulta) };
+  const usuarios = {
+    createQueryBuilder: vi.fn(() => consulta),
+    findOneBy: vi.fn().mockResolvedValue(usuario ? { ...usuario } : null),
+    update: vi.fn().mockResolvedValue({ affected: 1 }),
+  };
   const sesiones = {
     insert: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
@@ -45,7 +50,7 @@ function crearServicio(usuario: Record<string, unknown> | null) {
     config,
     auditoria as unknown as AuditoriaService,
   );
-  return { servicio, consulta, sesiones, auditoria, jwt };
+  return { servicio, consulta, usuarios, sesiones, auditoria, jwt };
 }
 
 const usuarioActivo = {
@@ -86,6 +91,7 @@ describe('AutenticacionService.iniciarSesion (RF-01)', () => {
       nombre: 'Ana Pérez',
       email: 'ana@cambridge.edu.co',
       rol: 'DOCENTE',
+      autorizoDatos: false,
     });
     expect(respuesta).not.toHaveProperty('usuario.contrasenaHash');
   });
@@ -191,6 +197,75 @@ describe('AutenticacionService.iniciarSesion (RF-01)', () => {
       }
     },
   );
+});
+
+describe('AutenticacionService.autorizarTratamientoDatos (RNF-31, Ley 1581 de 2012)', () => {
+  it('el inicio de sesión indica si el usuario ya autorizó', async () => {
+    const { servicio } = crearServicio({
+      ...usuarioActivo,
+      autorizacionDatosEn: new Date('2026-11-01T10:00:00Z'),
+    });
+    const respuesta = await servicio.iniciarSesion(
+      usuarioActivo.email,
+      CONTRASENA,
+      null,
+    );
+    expect(respuesta.usuario.autorizoDatos).toBe(true);
+  });
+
+  it('guarda la fecha, la versión del aviso y deja registro en el Audit Log', async () => {
+    const { servicio, usuarios, auditoria } = crearServicio({
+      ...usuarioActivo,
+      autorizacionDatosEn: null,
+      versionAvisoPrivacidad: null,
+    });
+    const respuesta = await servicio.autorizarTratamientoDatos(
+      usuarioActivo.id,
+      '10.0.0.7',
+    );
+    expect(respuesta.autorizoDatos).toBe(true);
+    expect(respuesta.versionAvisoPrivacidad).toBe(VERSION_AVISO_PRIVACIDAD);
+    expect(usuarios.update).toHaveBeenCalledWith(
+      { id: usuarioActivo.id },
+      {
+        autorizacionDatosEn: expect.any(Date),
+        versionAvisoPrivacidad: VERSION_AVISO_PRIVACIDAD,
+      },
+    );
+    expect(auditoria.registrar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usuarioId: usuarioActivo.id,
+        accion: 'AUTORIZAR_TRATAMIENTO_DATOS',
+        ip: '10.0.0.7',
+      }),
+    );
+  });
+
+  it('no cambia la fecha si ya había autorizado esta versión del aviso', async () => {
+    const fecha = new Date('2026-11-01T10:00:00Z');
+    const { servicio, usuarios, auditoria } = crearServicio({
+      ...usuarioActivo,
+      autorizacionDatosEn: fecha,
+      versionAvisoPrivacidad: VERSION_AVISO_PRIVACIDAD,
+    });
+    const respuesta = await servicio.autorizarTratamientoDatos(
+      usuarioActivo.id,
+      null,
+    );
+    expect(respuesta.autorizacionDatosEn).toBe(fecha);
+    expect(usuarios.update).not.toHaveBeenCalled();
+    expect(auditoria.registrar).not.toHaveBeenCalled();
+  });
+
+  it('vuelve a pedirla cuando cambia la versión del aviso', async () => {
+    const { servicio, usuarios } = crearServicio({
+      ...usuarioActivo,
+      autorizacionDatosEn: new Date('2025-01-01T00:00:00Z'),
+      versionAvisoPrivacidad: '2025-01',
+    });
+    await servicio.autorizarTratamientoDatos(usuarioActivo.id, null);
+    expect(usuarios.update).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('hashRefreshToken', () => {
