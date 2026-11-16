@@ -7,6 +7,7 @@ import { AppController } from './app.controller.js';
 import { validarEntorno } from './configuracion/entorno.js';
 import { EvaluacionModule } from './evaluacion/evaluacion.module.js';
 import { HorariosModule } from './horarios/horarios.module.js';
+import { MIGRACIONES } from './migraciones/index.js';
 import { SeguridadModule } from './seguridad/seguridad.module.js';
 
 @Module({
@@ -24,6 +25,9 @@ import { SeguridadModule } from './seguridad/seguridad.module.js';
         autoLoadEntities: true,
         // RNF-28: sincronización automática del esquema solo en desarrollo.
         synchronize: config.get<string>('NODE_ENV') === 'development',
+        // En producción el esquema se crea y se actualiza con las migraciones, al arrancar.
+        migrations: MIGRACIONES,
+        migrationsRun: config.get<string>('NODE_ENV') === 'production',
         // RNF-20: hasta 10 reintentos con 3 segundos de intervalo.
         retryAttempts: 10,
         retryDelay: 3000,
