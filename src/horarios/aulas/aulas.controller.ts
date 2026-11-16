@@ -48,6 +48,7 @@ export class AulasController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Consulta una aula por su identificador' })
   obtener(@Param('id', ParseUUIDPipe) id: string) {
     return this.servicio.obtener(id);
   }
@@ -66,6 +67,7 @@ export class AulasController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Actualiza una aula' })
   actualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: ActualizarAulaDto,
@@ -76,6 +78,7 @@ export class AulasController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Elimina una aula' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiConflictResponse({ description: 'El aula está en uso.' })
   async eliminar(

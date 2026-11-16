@@ -8,7 +8,10 @@ import { LessThan, Repository } from 'typeorm';
 import { AuditoriaService } from '../auditoria/auditoria.service.js';
 import { Sesion } from '../entidades/sesion.entity.js';
 import { Usuario } from '../entidades/usuario.entity.js';
-import { RespuestaSesionDto } from './dto/respuesta-sesion.dto.js';
+import {
+  AutorizacionDatosDto,
+  RespuestaSesionDto,
+} from './dto/respuesta-sesion.dto.js';
 import {
   hashRefreshToken,
   PayloadAccess,
@@ -32,6 +35,12 @@ const HASH_DE_RELLENO = bcrypt.hashSync(
   'relleno-para-tiempo-constante',
   SALT_ROUNDS,
 );
+
+/**
+ * Versión del aviso de privacidad vigente. Al cambiar el texto del aviso se cambia esta
+ * versión y el cliente vuelve a pedir la autorización.
+ */
+export const VERSION_AVISO_PRIVACIDAD = '2026-11';
 
 @Injectable()
 export class AutenticacionService {
@@ -175,6 +184,46 @@ export class AutenticacionService {
     }
   }
 
+  /**
+   * Registra la autorización del titular para el tratamiento de sus datos personales
+   * (Ley 1581 de 2012, art. 9; Decreto 1377 de 2013, art. 7). Queda la fecha, la versión
+   * del aviso aceptado y un registro en el Audit Log como prueba. Si ya había autorizado
+   * esa versión, conserva la fecha original.
+   */
+  async autorizarTratamientoDatos(
+    usuarioId: string,
+    ip: string | null,
+  ): Promise<AutorizacionDatosDto> {
+    const usuario = await this.usuarios.findOneBy({ id: usuarioId });
+    if (!usuario) throw new UnauthorizedException(MENSAJE_SESION_INVALIDA);
+    if (
+      !usuario.autorizacionDatosEn ||
+      usuario.versionAvisoPrivacidad !== VERSION_AVISO_PRIVACIDAD
+    ) {
+      usuario.autorizacionDatosEn = new Date();
+      usuario.versionAvisoPrivacidad = VERSION_AVISO_PRIVACIDAD;
+      await this.usuarios.update(
+        { id: usuario.id },
+        {
+          autorizacionDatosEn: usuario.autorizacionDatosEn,
+          versionAvisoPrivacidad: VERSION_AVISO_PRIVACIDAD,
+        },
+      );
+      await this.auditoria.registrar({
+        usuarioId: usuario.id,
+        modulo: 'SEGURIDAD',
+        accion: 'AUTORIZAR_TRATAMIENTO_DATOS',
+        detalle: `Aviso de privacidad versión ${VERSION_AVISO_PRIVACIDAD}`,
+        ip,
+      });
+    }
+    return {
+      autorizoDatos: true,
+      autorizacionDatosEn: usuario.autorizacionDatosEn,
+      versionAvisoPrivacidad: VERSION_AVISO_PRIVACIDAD,
+    };
+  }
+
   private async emitirTokens(usuario: Usuario): Promise<RespuestaSesionDto> {
     const payloadAccess: PayloadAccess = {
       sub: usuario.id,
@@ -212,6 +261,7 @@ export class AutenticacionService {
         nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
+        autorizoDatos: usuario.autorizacionDatosEn != null,
       },
     };
   }

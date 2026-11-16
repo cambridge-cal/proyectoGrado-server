@@ -50,6 +50,7 @@ export class FranjasController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Consulta una franja horaria por su identificador' })
   @Roles(Rol.ADMIN, Rol.DOCENTE)
   obtener(@Param('id', ParseUUIDPipe) id: string) {
     return this.servicio.obtener(id);
@@ -81,6 +82,7 @@ export class FranjasController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Actualiza una franja horaria' })
   actualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: ActualizarFranjaDto,
@@ -91,6 +93,7 @@ export class FranjasController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Elimina una franja horaria' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiConflictResponse({ description: 'La franja está en uso.' })
   async eliminar(

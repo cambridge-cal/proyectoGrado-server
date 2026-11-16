@@ -27,7 +27,11 @@ import {
   RestablecerContrasenaDto,
 } from './dto/recuperar-contrasena.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
-import { RespuestaSesionDto } from './dto/respuesta-sesion.dto.js';
+import { AutorizarDatosDto } from './dto/autorizar-datos.dto.js';
+import {
+  AutorizacionDatosDto,
+  RespuestaSesionDto,
+} from './dto/respuesta-sesion.dto.js';
 import { Publico } from '../autorizacion/decoradores.js';
 import { type PeticionAutenticada } from './jwt-auth.guard.js';
 import type { PayloadAccess } from './tokens.js';
@@ -136,6 +140,24 @@ export class AutenticacionController {
     return this.recuperacion.restablecer(
       datos.token,
       datos.nuevaContrasena,
+      peticion.ip ?? null,
+    );
+  }
+
+  @Post('autorizacion-datos')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Registra que el usuario acepta el aviso de privacidad y autoriza el tratamiento de sus datos (RNF-31, Ley 1581 de 2012)',
+  })
+  @ApiOkResponse({ type: AutorizacionDatosDto })
+  autorizarDatos(
+    @Body() _datos: AutorizarDatosDto,
+    @Req() peticion: PeticionAutenticada,
+  ): Promise<AutorizacionDatosDto> {
+    return this.autenticacion.autorizarTratamientoDatos(
+      peticion.usuario.sub,
       peticion.ip ?? null,
     );
   }

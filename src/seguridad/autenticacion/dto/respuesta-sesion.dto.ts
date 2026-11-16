@@ -13,6 +13,24 @@ export class UsuarioSesionDto {
 
   @ApiProperty({ enum: Rol, enumName: 'Rol' })
   rol: Rol;
+
+  @ApiProperty({
+    description:
+      'false hasta que el usuario acepta el aviso de privacidad en su primer ingreso (Decreto 1377 de 2013).',
+  })
+  autorizoDatos: boolean;
+}
+
+/** Respuesta de POST /auth/autorizacion-datos. */
+export class AutorizacionDatosDto {
+  @ApiProperty()
+  autorizoDatos: boolean;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  autorizacionDatosEn: Date;
+
+  @ApiProperty({ example: '2026-11' })
+  versionAvisoPrivacidad: string;
 }
 
 /** Respuesta de POST /auth/login (RF-01, Figura 6.3). */

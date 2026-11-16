@@ -48,11 +48,13 @@ export class NivelesController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Consulta un nivel de idioma por su identificador' })
   obtener(@Param('id', ParseUUIDPipe) id: string) {
     return this.servicio.obtener(id);
   }
 
   @Post()
+  @ApiOperation({ summary: 'Crea un nivel de idioma' })
   @ApiConflictResponse({ description: 'Dato único repetido.' })
   crear(
     @Body() datos: CrearNivelDto,
@@ -63,6 +65,7 @@ export class NivelesController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Actualiza un nivel de idioma' })
   actualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: ActualizarNivelDto,
@@ -73,6 +76,7 @@ export class NivelesController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Elimina un nivel de idioma' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiConflictResponse({ description: 'El nivel está en uso.' })
   async eliminar(
