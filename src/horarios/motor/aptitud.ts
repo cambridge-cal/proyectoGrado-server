@@ -36,7 +36,8 @@ export function indexar(instancia: InstanciaMotor): Indices {
  *
  * Restricciones duras: docente en dos asignaciones de la misma franja, aula con dos grupos
  * en la misma franja, docente sin disponibilidad en la franja, grupo que excede la capacidad
- * del aula y, además, un mismo grupo programado dos veces en la misma franja.
+ * del aula, un mismo grupo programado dos veces en la misma franja y grupo programado en una
+ * franja que no corresponde a su jornada o a su intensidad semanal.
  */
 export function evaluar(cromosoma: Cromosoma, indices: Indices): Evaluacion {
   const violaciones: Violacion[] = [];
@@ -70,6 +71,8 @@ export function evaluar(cromosoma: Cromosoma, indices: Indices): Evaluacion {
       violar('SIN_DISPONIBILIDAD', [i]);
     if (!aula || !grupo || grupo.estudiantes > aula.capacidad)
       violar('CAPACIDAD_AULA', [i]);
+    if (grupo?.franjas && !grupo.franjas.has(gen.franjaId))
+      violar('FRANJA_NO_PERMITIDA', [i]);
     horasDocente.set(
       gen.docenteId,
       (horasDocente.get(gen.docenteId) ?? 0) + (franja?.horas ?? 0),

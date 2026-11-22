@@ -21,6 +21,7 @@ import { ValidacionSemanticaService } from '../gemini/validacion-semantica.servi
 import { MotorService } from '../motor/motor.service.js';
 import {
   duracionTipica,
+  franjasDelGrupo,
   HorariosService,
   sesionesSemanales,
 } from './horarios.service.js';
@@ -40,7 +41,7 @@ const franjas = [DiaSemana.LUN, DiaSemana.MAR, DiaSemana.MIE].flatMap(
       (inicio, b) =>
         ({
           id: `f-${dia}-${b}`,
-          diaSemana: dia,
+          dias: [dia],
           horaInicio: inicio,
           horaFin: b === 0 ? '09:00' : '11:00',
           bloque: d * 2 + b + 1,
@@ -386,13 +387,82 @@ describe('HorariosService.generar (RF-17, RF-19, RNF-18)', () => {
   });
 });
 
+describe('Franjas de un grupo según jornada e intensidad (RF-12, RF-17)', () => {
+  // Los bloques de Cambridge Academy of Languages: intensivos de 6 h y regulares de 3 a 3,5 h.
+  const f = (dias: DiaSemana[], horaInicio: string, horaFin: string) => ({
+    horaInicio,
+    horaFin,
+    dias,
+    nombre: `${dias.join('-')} ${horaInicio}`,
+  });
+  const MJ = [DiaSemana.MAR, DiaSemana.MIE, DiaSemana.JUE];
+  const bloques = [
+    f(MJ, '08:00', '10:00'),
+    f(MJ, '10:00', '12:00'),
+    f(MJ, '14:00', '16:00'),
+    f(MJ, '16:00', '18:00'),
+    f([DiaSemana.LUN, ...MJ], '18:30', '20:00'),
+    f([DiaSemana.LUN, DiaSemana.VIE], '17:00', '18:30'),
+    f([DiaSemana.SAB], '08:30', '12:00'),
+    f([DiaSemana.SAB], '14:00', '17:30'),
+  ];
+  const nombres = (resultado: { franjas: Array<{ nombre: string }> }) =>
+    resultado.franjas.map((x) => x.nombre);
+
+  it('un grupo intensivo de la mañana va en un bloque de martes a jueves', () => {
+    const r = franjasDelGrupo(bloques, Jornada.MANANA, 6);
+    expect(r.sesiones).toBe(1);
+    expect(nombres(r)).toEqual(['MAR-MIE-JUE 08:00', 'MAR-MIE-JUE 10:00']);
+  });
+
+  it('un grupo intensivo de la noche va de lunes a jueves', () => {
+    const r = franjasDelGrupo(bloques, Jornada.NOCHE, 6);
+    expect(nombres(r)).toEqual(['LUN-MAR-MIE-JUE 18:30']);
+  });
+
+  it('un grupo regular de 3 h de la tarde cabe en lunes y viernes o en sábado', () => {
+    const r = franjasDelGrupo(bloques, Jornada.TARDE, 3);
+    expect(r.sesiones).toBe(1);
+    expect(nombres(r)).toEqual(['LUN-VIE 17:00', 'SAB 14:00']);
+  });
+
+  it('con franjas de un solo día usa varias de su jornada, como antes', () => {
+    const dias = [DiaSemana.LUN, DiaSemana.MAR, DiaSemana.MIE];
+    const sueltas = dias.flatMap((d) => [
+      f([d], '07:00', '09:00'),
+      f([d], '14:00', '16:00'),
+    ]);
+    const r = franjasDelGrupo(sueltas, Jornada.MANANA, 4);
+    expect(r.sesiones).toBe(2);
+    expect(r.franjas.every((x) => x.horaInicio === '07:00')).toBe(true);
+  });
+
+  it('si no hay franjas de su jornada puede usar cualquiera', () => {
+    const r = franjasDelGrupo(
+      [f([DiaSemana.LUN], '07:00', '09:00')],
+      Jornada.NOCHE,
+      2,
+    );
+    expect(r.franjas).toHaveLength(1);
+  });
+});
+
 describe('Sesiones semanales de un grupo', () => {
+  it('cuenta las horas de todos los días de la franja', () => {
+    expect(
+      duracionTipica([
+        { horaInicio: '08:00', horaFin: '10:00', dias: MJ_PRUEBA },
+        { horaInicio: '10:00', horaFin: '12:00', dias: MJ_PRUEBA },
+      ]),
+    ).toBe(6);
+  });
+
   it('toma la duración más común de las franjas', () => {
     expect(
       duracionTipica([
-        { horaInicio: '07:00', horaFin: '09:00' },
-        { horaInicio: '09:00', horaFin: '11:00' },
-        { horaInicio: '18:00', horaFin: '19:30' },
+        { horaInicio: '07:00', horaFin: '09:00', dias: [DiaSemana.LUN] },
+        { horaInicio: '09:00', horaFin: '11:00', dias: [DiaSemana.LUN] },
+        { horaInicio: '18:00', horaFin: '19:30', dias: [DiaSemana.LUN] },
       ]),
     ).toBe(2);
   });
@@ -454,3 +524,5 @@ describe('HorariosService.actual (RF-21, RF-25)', () => {
     expect(sinGrupos.asignaciones).toHaveLength(0);
   });
 });
+
+const MJ_PRUEBA = [DiaSemana.MAR, DiaSemana.MIE, DiaSemana.JUE];

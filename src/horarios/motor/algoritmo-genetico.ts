@@ -1,6 +1,6 @@
 import type { Aleatorio } from './aleatorio.js';
 import { aptitudMaxima, evaluar } from './aptitud.js';
-import type { Problema } from './problema.js';
+import { franjasDisponibles, type Problema } from './problema.js';
 import type { Cromosoma, Evaluacion, ParametrosMotor } from './tipos.js';
 
 export interface ResultadoAG {
@@ -121,13 +121,10 @@ export function mutar(
   }
   const gen = cromosoma[aleatorio.elegir(bloque.posiciones)];
   if (tipo === 1) {
-    const disponibles = [
-      ...(problema.indices.docentes.get(gen.docenteId)?.franjasDisponibles ??
-        []),
-    ];
+    const disponibles = franjasDisponibles(problema, bloque, gen.docenteId);
     gen.franjaId = disponibles.length
       ? aleatorio.elegir(disponibles)
-      : aleatorio.elegir(problema.franjas);
+      : aleatorio.elegir(bloque.franjas);
   } else {
     gen.aulaId = aleatorio.elegir(bloque.aulas);
   }

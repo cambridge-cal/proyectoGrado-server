@@ -154,7 +154,7 @@ export class DocentesService {
     const filas = await this.fuente.getRepository(Disponibilidad).find({
       where: { docente: { id: docenteId } },
       relations: { franjaHoraria: true },
-      order: { franjaHoraria: { diaSemana: 'ASC', horaInicio: 'ASC' } },
+      order: { franjaHoraria: { dias: 'ASC', horaInicio: 'ASC' } },
     });
     return filas.map((fila) => fila.franjaHoraria);
   }

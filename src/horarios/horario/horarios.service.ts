@@ -14,10 +14,11 @@ import { Rol } from '../../seguridad/entidades/rol.enum.js';
 import { Aula } from '../entidades/aula.entity.js';
 import { Disponibilidad } from '../entidades/disponibilidad.entity.js';
 import { EstudianteGrupo } from '../entidades/estudiante-grupo.entity.js';
-import { TipoAula } from '../entidades/enums.js';
+import { Jornada, TipoAula } from '../entidades/enums.js';
 import {
   FranjaHoraria,
   horasDeFranja,
+  jornadaDeFranja,
 } from '../entidades/franja-horaria.entity.js';
 import { Grupo } from '../entidades/grupo.entity.js';
 import { Horario } from '../entidades/horario.entity.js';
@@ -46,6 +47,8 @@ export const DESCRIPCION_RESTRICCION: Record<TipoViolacion, string> = {
   CRUCE_GRUPO: 'Grupo con dos sesiones en la misma franja',
   SIN_DISPONIBILIDAD: 'Docente asignado en una franja sin disponibilidad',
   CAPACIDAD_AULA: 'Grupo que excede la capacidad del aula',
+  FRANJA_NO_PERMITIDA:
+    'Grupo en una franja que no corresponde a su jornada o a su intensidad semanal',
 };
 
 /**
@@ -314,7 +317,7 @@ export class HorariosService {
           order: { codigo: 'ASC' },
         }),
         this.fuente.getRepository(FranjaHoraria).find({
-          order: { diaSemana: 'ASC', horaInicio: 'ASC' },
+          order: { dias: 'ASC', horaInicio: 'ASC' },
         }),
         this.fuente.getRepository(Disponibilidad).find({
           relations: { docente: true, franjaHoraria: true },
@@ -344,8 +347,6 @@ export class HorariosService {
       conjunto.add(d.franjaHoraria.id);
       porDocente.set(d.docente.id, conjunto);
     }
-    const duracion = duracionTipica(franjas);
-
     const instancia: InstanciaMotor = {
       docentes: docentes.map((d) => ({
         id: d.id,
@@ -360,17 +361,25 @@ export class HorariosService {
       })),
       franjas: franjas.map((f) => ({
         id: f.id,
-        dia: f.diaSemana,
+        dias: f.dias,
         horaInicio: f.horaInicio,
         horaFin: f.horaFin,
         horas: horasDeFranja(f),
       })),
-      grupos: grupos.map((g) => ({
-        id: g.id,
-        idioma: g.curso.nivelIdioma.idioma,
-        estudiantes: g.cupoMaximo,
-        sesiones: sesionesSemanales(g.curso.intensidadHoraria, duracion),
-      })),
+      grupos: grupos.map((g) => {
+        const { franjas: permitidas, sesiones } = franjasDelGrupo(
+          franjas,
+          g.jornada,
+          g.intensidadHoraria ?? g.curso.intensidadHoraria,
+        );
+        return {
+          id: g.id,
+          idioma: g.curso.nivelIdioma.idioma,
+          estudiantes: g.cupoMaximo,
+          sesiones,
+          franjas: new Set(permitidas.map((f) => f.id)),
+        };
+      }),
     };
 
     return {
@@ -396,11 +405,11 @@ export class HorariosService {
         nivel: g.curso.nivelIdioma.codigo,
         jornada: g.jornada,
         cupoMaximo: g.cupoMaximo,
-        intensidadHoraria: g.curso.intensidadHoraria,
+        intensidadHoraria: g.intensidadHoraria ?? g.curso.intensidadHoraria,
       })),
       franjas: franjas.map((f) => ({
         id: f.id,
-        diaSemana: f.diaSemana,
+        dias: f.dias,
         horaInicio: f.horaInicio,
         horaFin: f.horaFin,
       })),
@@ -418,9 +427,9 @@ export class HorariosService {
   }
 }
 
-/** Duración más común de las franjas, en horas. */
+/** Duración más común de las franjas, en horas por semana. */
 export function duracionTipica(
-  franjas: Array<Pick<FranjaHoraria, 'horaInicio' | 'horaFin'>>,
+  franjas: Array<Pick<FranjaHoraria, 'horaInicio' | 'horaFin' | 'dias'>>,
 ): number {
   const conteo = new Map<number, number>();
   for (const f of franjas) {
@@ -430,12 +439,45 @@ export function duracionTipica(
   return [...conteo].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
 }
 
-/** Franjas por semana que necesita un grupo para cubrir la intensidad horaria del curso. */
+/** Franjas por semana que necesita un grupo para cubrir su intensidad horaria. */
 export function sesionesSemanales(
   intensidad: number,
   duracion: number,
 ): number {
   return Math.max(1, Math.ceil(intensidad / duracion - 1e-9));
+}
+
+/** Holgura con la que una franja cubre la intensidad de un grupo: 3 h caben en 3 o 3,5 h. */
+export const HOLGURA_INTENSIDAD = 0.5;
+
+/**
+ * Franjas en las que se puede programar un grupo y cuántas necesita (RF-12, RF-17):
+ *   1. Las de su jornada, según la hora de inicio; si no hay ninguna, todas.
+ *   2. De ellas, las que cubren la intensidad semanal en un solo bloque (por ejemplo una de
+ *      martes a jueves de 2 h para un grupo de 6 h). Con esas el grupo necesita una sola.
+ *   3. Si ninguna la cubre (franjas de un solo día), el grupo usa varias franjas de su
+ *      jornada, tantas como haga falta según la duración más común.
+ */
+export function franjasDelGrupo<
+  F extends Pick<FranjaHoraria, 'horaInicio' | 'horaFin' | 'dias'>,
+>(
+  franjas: F[],
+  jornada: Jornada,
+  intensidad: number,
+): { franjas: F[]; sesiones: number } {
+  const deJornada = franjas.filter((f) => jornadaDeFranja(f) === jornada);
+  const base = deJornada.length ? deJornada : franjas;
+  const enUnBloque = base.filter((f) => {
+    const horas = horasDeFranja(f);
+    return (
+      horas >= intensidad - 1e-9 && horas <= intensidad + HOLGURA_INTENSIDAD
+    );
+  });
+  if (enUnBloque.length) return { franjas: enUnBloque, sesiones: 1 };
+  return {
+    franjas: base,
+    sesiones: sesionesSemanales(intensidad, duracionTipica(base)),
+  };
 }
 
 /** Deja solo las asignaciones visibles; conserva la posición original de cada una. */

@@ -21,9 +21,9 @@ Las pestañas van en el orden en que conviene llenarlas:
 | Períodos | El período académico y sus fechas. Solo uno puede estar activo. |
 | Niveles | Los niveles de cada idioma, por ejemplo ING-A1. |
 | Cursos | El curso de cada nivel y su intensidad horaria semanal. |
-| Grupos | Los grupos de cada curso, con cupo y jornada. Cada grupo recibe un código de acceso para que los estudiantes se inscriban. |
+| Grupos | Los grupos de cada curso, con cupo, jornada y, si cambia respecto al curso, su intensidad semanal (por ejemplo 6 h en modalidad intensiva o 3 h en regular). Cada grupo recibe un código de acceso para que los estudiantes se inscriban. |
 | Aulas | Salones, laboratorios y aulas virtuales, con su capacidad. |
-| Franjas | Los bloques de día y hora en que se dictan clases. |
+| Franjas | Los bloques en que se dictan clases. Un bloque puede repetirse varios días a la misma hora, por ejemplo martes a jueves de 8:00 a 10:00 o sábados de 8:30 a 12:00. Dos franjas no pueden cruzarse en un mismo día. |
 | Docentes | Especialidad y carga máxima semanal de cada docente. |
 | Disponibilidad | Las franjas en las que cada docente puede dictar. El docente también la registra desde su cuenta. |
 
@@ -35,7 +35,7 @@ Crea las cuentas de docentes y estudiantes, con su rol. Desde aquí también se 
 
 1. En **Horarios** elige **Generar con IA**.
 2. Si quieres, excluye tipos de aula (por ejemplo, las virtuales) y elige **Iniciar generación**.
-3. El sistema arma el horario con el Algoritmo Genético y la Búsqueda Tabú y lo envía a Gemini para la validación. Puede tardar hasta tres minutos.
+3. El sistema arma el horario con el Algoritmo Genético y la Búsqueda Tabú y lo envía a Gemini para la validación. Puede tardar hasta tres minutos. Cada grupo queda en una franja de su jornada; si existe un bloque que cubre su intensidad semanal (por ejemplo martes a jueves de 2 h para un grupo de 6 h), queda en ese bloque.
 4. El resultado indica si Gemini lo aprobó, si propuso ajustes o si quedó sin validar. Un horario sin validar cumple todas las restricciones obligatorias; solo le falta la revisión adicional.
 5. Si falta información o no hay forma de cumplir las restricciones, el sistema dice cuáles faltan y no guarda nada.
 6. **Ver horario** abre la grilla, con filtros por docente, aula, nivel y jornada.

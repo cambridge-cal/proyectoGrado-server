@@ -24,7 +24,8 @@ export interface AsignacionDetalle {
   aula: { id: string; codigo: string; tipo: string } | null;
   franja: {
     id: string;
-    diaSemana: string;
+    /** Días en que se repite la franja (por ejemplo MAR, MIE y JUE). */
+    dias: string[];
     horaInicio: string;
     horaFin: string;
     bloque: number;
@@ -130,7 +131,7 @@ export async function detallar(
         franja: franja
           ? {
               id: franja.id,
-              diaSemana: franja.diaSemana,
+              dias: franja.dias,
               horaInicio: franja.horaInicio,
               horaFin: franja.horaFin,
               bloque: franja.bloque,
