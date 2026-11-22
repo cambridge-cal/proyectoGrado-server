@@ -34,7 +34,9 @@ import { SeguridadModule } from './seguridad/seguridad.module.js';
       }),
     }),
     // RNF-04: máximo 100 peticiones por minuto por IP; el exceso responde HTTP 429.
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRoot([
+      { ttl: 60_000, limit: Number(process.env.LIMITE_PETICIONES ?? 100) },
+    ]),
     SeguridadModule,
     HorariosModule,
     EvaluacionModule,

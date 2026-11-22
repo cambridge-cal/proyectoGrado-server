@@ -21,10 +21,11 @@ export interface ClienteGemini {
 }
 
 /**
- * Gemini 2.5 Flash: disponible en el plan gratuito de la API. Gemini 3.1 Pro tiene cuota 0
- * en ese plan; se puede usar con GEMINI_MODEL si la cuenta tiene facturación (RNF-30).
+ * Gemini 3.5 Flash: disponible en el plan gratuito de la API. Desde noviembre de 2026 Google
+ * no ofrece gemini-2.5-flash a claves nuevas, y los Flash más recientes (3.7 y 3.8) suelen
+ * responder 503 por alta demanda. Otro modelo se elige con GEMINI_MODEL (RNF-30).
  */
-export const MODELO_POR_DEFECTO = 'gemini-2.5-flash';
+export const MODELO_POR_DEFECTO = 'gemini-3.5-flash';
 
 /** Tokens de razonamiento por defecto en los modelos 2.5: sin límite, Flash puede pasar de 60 s. */
 export const PRESUPUESTO_RAZONAMIENTO_25 = 1024;

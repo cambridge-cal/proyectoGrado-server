@@ -48,22 +48,29 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  # Despliegue al servidor de producción: habilitarlo cuando se defina el servidor.
-  # Secretos necesarios:
-  #   - DEPLOY_HOST: IP o dominio del servidor
-  #   - DEPLOY_USER: usuario SSH
-  #   - DEPLOY_KEY: clave privada SSH
-  #   - DEPLOY_PATH: ruta en el servidor donde está el docker-compose.yml de producción
+  # Despliegue a la máquina de Azure for Students (docs/produccion.md).
+  # Se activa con la variable del repositorio DEPLOY_HABILITADO = true y estos secretos:
+  #   DEPLOY_HOST: dominio del servidor (sistema-cal.westus2.cloudapp.azure.com)
+  #   DEPLOY_USER: usuario SSH (azureuser)
+  #   DEPLOY_KEY:  clave privada SSH de despliegue
   deploy:
     name: Desplegar a producción
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: false  # Deshabilitado hasta definir el servidor de producción
+    if: vars.DEPLOY_HABILITADO == 'true'
     environment:
       name: production
-      url: https://${{ vars.PRODUCTION_DOMAIN }}
+      url: https://sistema-cal.westus2.cloudapp.azure.com
     steps:
       - name: Desplegar vía SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
-          echo "Conectar a $DEPLOY_HOST y ejecutar docker compose pull && docker compose up -d"
-          echo "Este paso se habilitará cuando se configure el servidor de producción."
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/despliegue
+          chmod 600 ~/.ssh/despliegue
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/despliegue "$DEPLOY_USER@$DEPLOY_HOST" \
+            /opt/sistema-cal/servidor/despliegue/actualizar.sh

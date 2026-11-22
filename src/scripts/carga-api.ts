@@ -55,7 +55,7 @@ async function probarEndpoint(
     promedioMs: resultado.latency.average,
     rps: resultado.requests.average,
     totalReq: resultado.requests.total,
-    errores: resultado.errors + resultado.timeouts,
+    errores: resultado.errors + resultado.timeouts + resultado.non2xx,
     cumple: p95Ms < LIMITE_P95_MS,
   };
 }
@@ -66,7 +66,7 @@ async function obtenerToken(): Promise<string | null> {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        correo: 'admin@cal.edu.co',
+        email: process.env.ADMIN_EMAIL ?? 'admin@cambridge.edu.co',
         contrasena: process.env.SEMILLA_CONTRASENA ?? 'Clave123*',
       }),
     });
@@ -107,7 +107,14 @@ const endpoints: Array<{
   auth?: boolean;
 }> = [
   { ruta: '/salud' },
-  { ruta: '/auth/login', metodo: 'POST', body: { correo: 'admin@cal.edu.co', contrasena: process.env.SEMILLA_CONTRASENA ?? 'Clave123*' } },
+  {
+    ruta: '/auth/login',
+    metodo: 'POST',
+    body: {
+      email: process.env.ADMIN_EMAIL ?? 'admin@cambridge.edu.co',
+      contrasena: process.env.SEMILLA_CONTRASENA ?? 'Clave123*',
+    },
+  },
   { ruta: '/auth/perfil', auth: true },
   { ruta: '/usuarios', auth: true },
   { ruta: '/periodos', auth: true },

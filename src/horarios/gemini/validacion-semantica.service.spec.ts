@@ -400,8 +400,8 @@ describe('ValidacionSemanticaService (RF-17, RNF-18)', () => {
 });
 
 describe('Configuración del cliente de Gemini (RNF-30)', () => {
-  it('usa Gemini 2.5 Flash por defecto', () => {
-    expect(MODELO_POR_DEFECTO).toBe('gemini-2.5-flash');
+  it('usa Gemini 3.5 Flash por defecto', () => {
+    expect(MODELO_POR_DEFECTO).toBe('gemini-3.5-flash');
   });
 
   it.each([
