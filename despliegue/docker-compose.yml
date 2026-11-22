@@ -1,0 +1,61 @@
+# Producción del Sistema CAL en una sola máquina (Azure for Students, B2ats v2).
+# Estructura esperada en el servidor:
+#   /opt/sistema-cal/.env          variables de producción (ver docs/produccion.md)
+#   /opt/sistema-cal/servidor      este repositorio
+#   /opt/sistema-cal/cliente       proyectoGrado-client
+# Uso: despliegue/actualizar.sh (descarga, construye y levanta los servicios)
+name: sistema-cal
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # API NestJS. Las migraciones corren solas al arrancar (migrationsRun en producción).
+  app:
+    build: ..
+    image: sistema-cal-servidor
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: "5432"
+      PORT: "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Caddy: sirve el cliente React, reenvía /api a la API y obtiene el certificado
+  # TLS de Let's Encrypt para DOMINIO (RNF-07).
+  web:
+    build: ../../cliente
+    image: sistema-cal-cliente
+    restart: unless-stopped
+    environment:
+      DOMINIO: ${DOMINIO}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_datos:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_datos:
+  caddy_config:

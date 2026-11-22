@@ -8,7 +8,7 @@ API REST del Sistema CAL, el software de generación automática de horarios con
 - PostgreSQL 15 en Docker, con TypeORM
 - JWT y bcrypt para autenticación
 - Algoritmo Genético y Búsqueda Tabú para la optimización de horarios
-- API de Gemini 2.5 Flash (`@google/genai`) para la validación semántica
+- API de Gemini 3.5 Flash (`@google/genai`) para la validación semántica
 
 ## Requisitos
 
@@ -67,7 +67,7 @@ API REST del Sistema CAL, el software de generación automática de horarios con
 
 ### Validación con Gemini
 
-Para que los horarios pasen por la validación semántica, pon en `.env` la clave en `GEMINI_API_KEY` (se obtiene en <https://aistudio.google.com/apikey>). El modelo por defecto es `gemini-2.5-flash`, que funciona en el plan gratuito. Sin clave el sistema funciona igual y guarda los horarios como no validados (RNF-18).
+Para que los horarios pasen por la validación semántica, pon en `.env` la clave en `GEMINI_API_KEY` (se obtiene en <https://aistudio.google.com/apikey>). La clave debe empezar por `AIza`: las claves `AQ.` que AI Studio genera desde mayo de 2026 responden 401 `ACCESS_TOKEN_TYPE_UNSUPPORTED` en esta API. El modelo por defecto es `gemini-3.5-flash`, que funciona en el plan gratuito. Sin clave el sistema funciona igual y guarda los horarios como no validados (RNF-18).
 
 ### Correo de recuperación de contraseña
 

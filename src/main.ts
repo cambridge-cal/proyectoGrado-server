@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
@@ -9,9 +10,15 @@ import { origenesCors } from './configuracion/entorno.js';
 
 async function bootstrap() {
   const httpsOptions = opcionesHttps();
-  const app = await NestFactory.create(AppModule, httpsOptions ? { httpsOptions } : {});
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule,
+    httpsOptions ? { httpsOptions } : {},
+  );
   const config = app.get(ConfigService);
 
+  // Detrás de Caddy la IP real llega en X-Forwarded-For. Solo se confía en proxies de
+  // red privada, así el límite de peticiones cuenta por cliente y no por proxy.
+  app.set('trust proxy', 'loopback, uniquelocal');
   app.setGlobalPrefix('api');
   app.use(helmet()); // RNF-08
   app.enableCors({
@@ -47,7 +54,8 @@ async function bootstrap() {
 }
 
 /** RNF-07: TLS 1.2 o superior cuando se proveen certificado y clave. */
-function opcionesHttps(): { cert: Buffer; key: Buffer; minVersion: string } | undefined {
+function opcionesHttps():
+  { cert: Buffer; key: Buffer; minVersion: string } | undefined {
   const certPath = process.env.TLS_CERT_PATH;
   const keyPath = process.env.TLS_KEY_PATH;
   if (!certPath || !keyPath) return undefined;
