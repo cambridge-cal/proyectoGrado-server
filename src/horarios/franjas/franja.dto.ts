@@ -18,11 +18,22 @@ const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MENSAJE_HORA = 'La hora debe tener el formato HH:mm (24 horas).';
 
 export class CrearFranjaDto {
-  @ApiProperty({ enum: DiaSemana, enumName: 'DiaSemana' })
-  @IsEnum(DiaSemana, {
-    message: 'El día debe ser LUN, MAR, MIE, JUE, VIE o SAB.',
+  @ApiProperty({
+    enum: DiaSemana,
+    enumName: 'DiaSemana',
+    isArray: true,
+    example: ['MAR', 'MIE', 'JUE'],
+    description:
+      'Días en que se repite la franja con la misma hora, por ejemplo martes a jueves.',
   })
-  diaSemana: DiaSemana;
+  @IsArray({ message: 'Indica los días de la franja.' })
+  @ArrayMinSize(1, { message: 'La franja necesita al menos un día.' })
+  @ArrayUnique({ message: 'Hay días repetidos en la franja.' })
+  @IsEnum(DiaSemana, {
+    each: true,
+    message: 'Cada día debe ser LUN, MAR, MIE, JUE, VIE o SAB.',
+  })
+  dias: DiaSemana[];
 
   @ApiProperty({ example: '08:00' })
   @Matches(HORA, { message: MENSAJE_HORA })
@@ -32,7 +43,10 @@ export class CrearFranjaDto {
   @Matches(HORA, { message: MENSAJE_HORA })
   horaFin: string;
 
-  @ApiProperty({ example: 1, description: 'Número del bloque dentro del día.' })
+  @ApiProperty({
+    example: 1,
+    description: 'Número para ordenar la franja en las vistas.',
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -43,13 +57,17 @@ export class CrearFranjaDto {
 export class ActualizarFranjaDto extends PartialType(CrearFranjaDto) {}
 
 export class FiltrosFranjasDto extends PaginacionDto {
-  @ApiPropertyOptional({ enum: DiaSemana, enumName: 'DiaSemana' })
+  @ApiPropertyOptional({
+    enum: DiaSemana,
+    enumName: 'DiaSemana',
+    description: 'Solo las franjas que incluyen este día.',
+  })
   @IsOptional()
   @IsEnum(DiaSemana)
-  diaSemana?: DiaSemana;
+  dia?: DiaSemana;
 }
 
-/** Crea de una vez las franjas de varios días con la misma duración. */
+/** Crea de una vez franjas de un solo día, de la misma duración, para varios días. */
 export class LoteFranjasDto {
   @ApiProperty({
     enum: DiaSemana,

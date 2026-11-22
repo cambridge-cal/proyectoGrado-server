@@ -22,6 +22,18 @@ Después agrega la clase nueva al final de la lista de [`src/migraciones/index.t
 
 La suite `test/migraciones.e2e-spec.ts` aplica todas las migraciones en una base de datos temporal y falla si el resultado no coincide con las entidades, así que un cambio de entidad sin migración no pasa el CI.
 
+## Base de datos de desarrollo después de un cambio que la sincronización no resuelve
+
+Algunos cambios no los puede aplicar la sincronización automática sobre una base con datos. Por ejemplo, la migración `FranjasPorBloques` convierte el día de la franja en una lista de días, y TypeORM no sabe hacerlo solo. En ese caso se recrea la base de desarrollo y se vuelven a cargar los datos de prueba:
+
+```bash
+docker compose down -v
+docker compose up -d
+npm run semilla
+```
+
+Las bases de producción no tienen este problema, porque se actualizan con las migraciones, que sí conservan los datos.
+
 ## Comandos
 
 | Comando | Uso |

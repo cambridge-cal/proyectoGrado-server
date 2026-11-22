@@ -21,9 +21,27 @@ const instancia: InstanciaMotor = {
     { id: 'A2', capacidad: 10, tipo: 'LAB' },
   ],
   franjas: [
-    { id: 'F1', dia: 'LUN', horaInicio: '08:00', horaFin: '10:00', horas: 2 },
-    { id: 'F2', dia: 'LUN', horaInicio: '10:00', horaFin: '12:00', horas: 2 },
-    { id: 'F3', dia: 'MAR', horaInicio: '08:00', horaFin: '10:00', horas: 2 },
+    {
+      id: 'F1',
+      dias: ['LUN'],
+      horaInicio: '08:00',
+      horaFin: '10:00',
+      horas: 2,
+    },
+    {
+      id: 'F2',
+      dias: ['LUN'],
+      horaInicio: '10:00',
+      horaFin: '12:00',
+      horas: 2,
+    },
+    {
+      id: 'F3',
+      dias: ['MAR'],
+      horaInicio: '08:00',
+      horaFin: '10:00',
+      horas: 2,
+    },
   ],
   grupos: [
     { id: 'G1', idioma: 'Inglés', estudiantes: 15, sesiones: 2 },
@@ -80,6 +98,54 @@ describe('Función de aptitud (sección 6.3.1)', () => {
     expect(tipos).toContain('CAPACIDAD_AULA');
     expect(tipos).toContain('CRUCE_GRUPO');
     expect(r.asignacionesValidas).toBe(0);
+  });
+
+  it('penaliza un grupo fuera de las franjas de su jornada e intensidad', () => {
+    const conFranjas = indexar({
+      ...instancia,
+      grupos: [
+        {
+          id: 'G2',
+          idioma: 'Francés',
+          estudiantes: 8,
+          sesiones: 1,
+          franjas: new Set(['F1']),
+        },
+      ],
+    });
+    const fuera = evaluar(
+      [{ grupoId: 'G2', docenteId: 'D1', aulaId: 'A1', franjaId: 'F3' }],
+      conFranjas,
+    );
+    expect(fuera.violaciones.map((v) => v.tipo)).toEqual([
+      'FRANJA_NO_PERMITIDA',
+    ]);
+    const dentro = evaluar(
+      [{ grupoId: 'G2', docenteId: 'D2', aulaId: 'A1', franjaId: 'F1' }],
+      conFranjas,
+    );
+    expect(dentro.violacionesDuras).toBe(0);
+  });
+
+  it('una franja de varios días suma las horas de todos los días a la carga', () => {
+    const bloque = indexar({
+      ...instancia,
+      franjas: [
+        {
+          id: 'F1',
+          dias: ['MAR', 'MIE', 'JUE'],
+          horaInicio: '08:00',
+          horaFin: '10:00',
+          horas: 6,
+        },
+      ],
+    });
+    const r = evaluar(
+      [{ grupoId: 'G1', docenteId: 'D1', aulaId: 'A1', franjaId: 'F1' }],
+      bloque,
+    );
+    // D1 admite 4 h por semana y el bloque de martes a jueves son 6 h.
+    expect(r.horasSobrecarga).toBe(2);
   });
 
   it('resta 50 por cada hora por encima de la carga máxima (restricción blanda)', () => {

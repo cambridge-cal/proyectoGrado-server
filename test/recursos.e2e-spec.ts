@@ -139,7 +139,7 @@ describe('Grupos, aulas y franjas horarias (e2e)', () => {
       .post('/api/franjas-horarias')
       .set(comoAdmin())
       .send({
-        diaSemana: 'SAB',
+        dias: ['SAB'],
         horaInicio: '22:30',
         horaFin: '23:00',
         bloque: 29,
@@ -149,7 +149,7 @@ describe('Grupos, aulas y franjas horarias (e2e)', () => {
       .post('/api/franjas-horarias')
       .set(comoAdmin())
       .send({
-        diaSemana: 'SAB',
+        dias: ['SAB'],
         horaInicio: '23:40',
         horaFin: '23:35',
         bloque: 29,
@@ -159,7 +159,7 @@ describe('Grupos, aulas y franjas horarias (e2e)', () => {
     // El Docente consulta las franjas para registrar su disponibilidad, pero no las crea.
     const consulta = await http()
       .get('/api/franjas-horarias')
-      .query({ diaSemana: 'SAB', size: 100 })
+      .query({ dia: 'SAB', size: 100 })
       .set('Authorization', `Bearer ${docente.token}`)
       .expect(200);
     expect(
@@ -171,7 +171,7 @@ describe('Grupos, aulas y franjas horarias (e2e)', () => {
       .post('/api/franjas-horarias')
       .set('Authorization', `Bearer ${docente.token}`)
       .send({
-        diaSemana: 'SAB',
+        dias: ['SAB'],
         horaInicio: '06:00',
         horaFin: '06:30',
         bloque: 28,

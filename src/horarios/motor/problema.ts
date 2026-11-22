@@ -4,7 +4,24 @@ import type { Cromosoma, InstanciaMotor } from './tipos.js';
 
 /** Quita tildes y mayúsculas para comparar la especialidad del docente con el idioma del grupo. */
 export function normalizar(texto: string): string {
-  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Idiomas que dicta un docente según su especialidad. Acepta varios separados por coma,
+ * guion, barra o "y", por ejemplo "Inglés - Francés" o "Inglés, Portugués".
+ */
+export function idiomasDe(especialidad: string): Set<string> {
+  return new Set(
+    normalizar(especialidad)
+      .split(/\s*(?:,|;|\/|-|–|\by\b)\s*/)
+      .map((parte) => parte.trim())
+      .filter(Boolean),
+  );
 }
 
 /** Estructura fija del cromosoma: qué posiciones corresponden a cada grupo. */
@@ -15,6 +32,8 @@ export interface BloqueGrupo {
   candidatos: string[];
   /** Aulas con capacidad suficiente para el grupo, o todas si ninguna alcanza. */
   aulas: string[];
+  /** Franjas permitidas para el grupo (jornada e intensidad), o todas. */
+  franjas: string[];
 }
 
 /** Datos precalculados que comparten el Algoritmo Genético y la Búsqueda Tabú. */
@@ -41,8 +60,11 @@ export class Problema {
     this.bloques = instancia.grupos.map((grupo) => {
       const idioma = normalizar(grupo.idioma);
       const afines = instancia.docentes
-        .filter((d) => normalizar(d.especialidad) === idioma)
+        .filter((d) => idiomasDe(d.especialidad).has(idioma))
         .map((d) => d.id);
+      const franjas = grupo.franjas
+        ? this.franjas.filter((f) => grupo.franjas!.has(f))
+        : [];
       const aulas = instancia.aulas
         .filter((a) => a.capacidad >= grupo.estudiantes)
         .map((a) => a.id);
@@ -57,6 +79,7 @@ export class Problema {
           ? afines
           : instancia.docentes.map((d) => d.id),
         aulas: aulas.length ? aulas : instancia.aulas.map((a) => a.id),
+        franjas: franjas.length ? franjas : this.franjas,
       };
     });
     this.largo = posicion;
@@ -79,7 +102,7 @@ export class Problema {
       const usadasGrupo = new Set<string>();
 
       for (const posicion of bloque.posiciones) {
-        const libres = this.franjas.filter(
+        const libres = bloque.franjas.filter(
           (f) =>
             docente.franjasDisponibles.has(f) &&
             !ocupadoDocente.has(`${docenteId}|${f}`) &&
@@ -87,7 +110,7 @@ export class Problema {
         );
         const franjaId = libres.length
           ? aleatorio.elegir(libres)
-          : aleatorio.elegir(this.franjas);
+          : aleatorio.elegir(bloque.franjas);
         const aulasLibres = bloque.aulas.filter(
           (a) => !ocupadaAula.has(`${a}|${franjaId}`),
         );
@@ -134,4 +157,15 @@ export class Problema {
     // Torneo entre los tres con más holgura para no asignar siempre al mismo.
     return aleatorio.elegir(libres.slice(0, Math.min(3, libres.length))).id;
   }
+}
+
+/** Franjas permitidas para el grupo en las que el docente está disponible. */
+export function franjasDisponibles(
+  problema: Problema,
+  bloque: BloqueGrupo,
+  docenteId: string,
+): string[] {
+  const disponibles =
+    problema.indices.docentes.get(docenteId)?.franjasDisponibles;
+  return disponibles ? bloque.franjas.filter((f) => disponibles.has(f)) : [];
 }

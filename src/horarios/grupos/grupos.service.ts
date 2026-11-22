@@ -99,6 +99,7 @@ export class GruposService {
               codigo: datos.codigo,
               cupoMaximo: datos.cupoMaximo,
               jornada: datos.jornada,
+              intensidadHoraria: datos.intensidadHoraria ?? null,
               curso,
               codigoAcceso,
             }),
@@ -123,6 +124,8 @@ export class GruposService {
     if (datos.codigo !== undefined) grupo.codigo = datos.codigo;
     if (datos.cupoMaximo !== undefined) grupo.cupoMaximo = datos.cupoMaximo;
     if (datos.jornada !== undefined) grupo.jornada = datos.jornada;
+    if (datos.intensidadHoraria !== undefined)
+      grupo.intensidadHoraria = datos.intensidadHoraria;
     const guardado = await conRestricciones(
       () => this.repo.save(grupo),
       MENSAJES,

@@ -5,13 +5,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, EntityManager } from 'typeorm';
+import { ArrayContains, DataSource, EntityManager } from 'typeorm';
 import type { Actor } from '../../compartido/actor.js';
 import { conRestricciones } from '../../compartido/errores-bd.js';
 import { desplazamiento, Pagina } from '../../compartido/paginacion.js';
 import { AuditoriaService } from '../../seguridad/auditoria/auditoria.service.js';
 import { DiaSemana } from '../entidades/enums.js';
-import { FranjaHoraria } from '../entidades/franja-horaria.entity.js';
+import {
+  FranjaHoraria,
+  ordenarDias,
+} from '../entidades/franja-horaria.entity.js';
 import {
   ActualizarFranjaDto,
   CrearFranjaDto,
@@ -20,7 +23,6 @@ import {
 } from './franja.dto.js';
 
 const MENSAJES = {
-  unico: 'Ya existe una franja con ese número de bloque en ese día.',
   enUso:
     'La franja tiene disponibilidades docentes asociadas y no se puede eliminar.',
 };
@@ -30,7 +32,7 @@ const aMinutos = (hora: string) =>
 const aHora = (minutos: number) =>
   `${String(Math.floor(minutos / 60)).padStart(2, '0')}:${String(minutos % 60).padStart(2, '0')}`;
 
-/** Franjas horarias institucionales (RF-14). No se permiten franjas que se crucen en el mismo día. */
+/** Franjas horarias institucionales (RF-14), de uno o varios días. No se permiten franjas que se crucen. */
 @Injectable()
 export class FranjasService {
   constructor(
@@ -45,9 +47,9 @@ export class FranjasService {
   async listar(filtros: FiltrosFranjasDto): Promise<Pagina<FranjaHoraria>> {
     const { skip, take } = desplazamiento(filtros);
     const [datos, total] = await this.repo.findAndCount({
-      where: filtros.diaSemana ? { diaSemana: filtros.diaSemana } : {},
+      where: filtros.dia ? { dias: ArrayContains([filtros.dia]) } : {},
       // El enum de PostgreSQL ordena los días en el orden de la semana.
-      order: { diaSemana: 'ASC', horaInicio: 'ASC' },
+      order: { dias: 'ASC', horaInicio: 'ASC' },
       skip,
       take,
     });
@@ -64,8 +66,9 @@ export class FranjasService {
     const franja = await conRestricciones(
       () =>
         this.fuente.transaction(async (tx) => {
-          await this.validar(tx, datos);
-          return tx.save(tx.create(FranjaHoraria, datos));
+          const franja = { ...datos, dias: ordenarDias(datos.dias) };
+          await this.validar(tx, franja);
+          return tx.save(tx.create(FranjaHoraria, franja));
         }),
       MENSAJES,
     );
@@ -100,7 +103,7 @@ export class FranjasService {
               m += datos.duracionMinutos, bloque++
             ) {
               const franja = {
-                diaSemana,
+                dias: [diaSemana],
                 horaInicio: aHora(m),
                 horaFin: aHora(m + datos.duracionMinutos),
                 bloque,
@@ -132,6 +135,7 @@ export class FranjasService {
           if (!actual)
             throw new NotFoundException('La franja horaria no existe.');
           Object.assign(actual, datos);
+          actual.dias = ordenarDias(actual.dias);
           await this.validar(tx, actual, id);
           return tx.save(actual);
         }),
@@ -149,15 +153,19 @@ export class FranjasService {
     await conRestricciones(() => this.repo.delete({ id }), MENSAJES);
     await this.registrar(actor, 'ELIMINAR_FRANJA', {
       franjaId: id,
-      diaSemana: franja.diaSemana,
+      dias: franja.dias,
       bloque: franja.bloque,
     });
   }
 
-  /** La hora de fin debe ser posterior y la franja no puede cruzarse con otra del mismo día. */
+  /**
+   * La hora de fin debe ser posterior y la franja no puede cruzarse con otra que comparta
+   * algún día. Así cada hora de cada día pertenece a una sola franja y el motor detecta los
+   * cruces comparando franjas (RF-18).
+   */
   private async validar(
     tx: EntityManager,
-    franja: { diaSemana: DiaSemana; horaInicio: string; horaFin: string },
+    franja: { dias: DiaSemana[]; horaInicio: string; horaFin: string },
     excluirId?: string,
   ): Promise<void> {
     if (aMinutos(franja.horaFin) <= aMinutos(franja.horaInicio)) {
@@ -168,7 +176,7 @@ export class FranjasService {
     const cruce = await tx
       .getRepository(FranjaHoraria)
       .createQueryBuilder('f')
-      .where('f.diaSemana = :dia', { dia: franja.diaSemana })
+      .where('f.dias && CAST(:dias AS dia_semana[])', { dias: franja.dias })
       .andWhere('f.horaInicio < :fin AND f.horaFin > :inicio', {
         inicio: franja.horaInicio,
         fin: franja.horaFin,
@@ -176,8 +184,9 @@ export class FranjasService {
       .andWhere(excluirId ? 'f.id <> :id' : '1=1', { id: excluirId })
       .getOne();
     if (cruce) {
+      const comunes = cruce.dias.filter((d) => franja.dias.includes(d));
       throw new ConflictException(
-        `La franja se cruza con el bloque ${cruce.bloque} del ${franja.diaSemana} (${cruce.horaInicio} a ${cruce.horaFin}).`,
+        `La franja se cruza el ${comunes.join(', ')} con la de ${cruce.horaInicio} a ${cruce.horaFin} (${cruce.dias.join(', ')}).`,
       );
     }
   }

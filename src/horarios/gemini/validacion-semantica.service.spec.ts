@@ -36,19 +36,19 @@ const json = (r: RespuestaGemini) => JSON.stringify(r);
 const franjas = [
   {
     id: 'f-lun-7',
-    diaSemana: DiaSemana.LUN,
+    dias: [DiaSemana.LUN],
     horaInicio: '07:00',
     horaFin: '09:00',
   },
   {
     id: 'f-lun-9',
-    diaSemana: DiaSemana.LUN,
+    dias: [DiaSemana.LUN],
     horaInicio: '09:00',
     horaFin: '11:00',
   },
   {
     id: 'f-mar-7',
-    diaSemana: DiaSemana.MAR,
+    dias: [DiaSemana.MAR],
     horaInicio: '07:00',
     horaFin: '09:00',
   },
@@ -107,7 +107,7 @@ const datos: DatosValidacion = {
     ],
     franjas: franjas.map((f) => ({
       id: f.id,
-      dia: f.diaSemana,
+      dias: f.dias,
       horaInicio: f.horaInicio,
       horaFin: f.horaFin,
       horas: 2,

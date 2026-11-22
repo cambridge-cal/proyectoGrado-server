@@ -27,6 +27,14 @@ export const NOMBRES_DIA: Record<DiaSemana, string> = {
   [DiaSemana.VIE]: 'Viernes',
   [DiaSemana.SAB]: 'Sábado',
 };
+/** Días de una franja en texto: "Martes, Miércoles y Jueves". */
+export function nombreDias(dias: readonly DiaSemana[]): string {
+  const nombres = dias.map((d) => NOMBRES_DIA[d]);
+  return nombres.length > 1
+    ? `${nombres.slice(0, -1).join(', ')} y ${nombres.at(-1)}`
+    : (nombres[0] ?? '');
+}
+
 const NOMBRES_JORNADA: Record<Jornada, string> = {
   [Jornada.MANANA]: 'Mañana',
   [Jornada.TARDE]: 'Tarde',
@@ -55,7 +63,7 @@ export interface DatosValidacion {
   }>;
   franjas: Array<{
     id: string;
-    diaSemana: DiaSemana;
+    dias: DiaSemana[];
     horaInicio: string;
     horaFin: string;
   }>;
@@ -317,6 +325,8 @@ const NOMBRE_VIOLACION: Record<Violacion['tipo'], string> = {
   CRUCE_GRUPO: 'el grupo queda con dos clases en la misma franja',
   SIN_DISPONIBILIDAD: 'el docente no tiene disponibilidad en esa franja',
   CAPACIDAD_AULA: 'el aula no tiene capacidad para el grupo',
+  FRANJA_NO_PERMITIDA:
+    'la franja no corresponde a la jornada o a la intensidad semanal del grupo',
 };
 
 /** Explica en texto qué restricciones rompen los ajustes, con los ids que ve Gemini. */
@@ -380,7 +390,7 @@ function traducir(datos: DatosValidacion): Traduccion {
             .find((x) => x.id === d.id)
             ?.franjasDisponibles.has(f.id),
         )
-        .map((f) => `${NOMBRES_DIA[f.diaSemana]} ${f.horaInicio}`),
+        .map((f) => `${nombreDias(f.dias)} ${f.horaInicio}`),
     })),
     aulas: datos.aulas.map((a) => ({
       id: a.codigo,
@@ -397,7 +407,7 @@ function traducir(datos: DatosValidacion): Traduccion {
       intensidadHorariaSemanal: g.intensidadHoraria,
     })),
     franjas: datos.franjas.map((f) => ({
-      dia: NOMBRES_DIA[f.diaSemana],
+      dia: nombreDias(f.dias),
       inicio: f.horaInicio,
       fin: f.horaFin,
     })),
@@ -408,7 +418,7 @@ function traducir(datos: DatosValidacion): Traduccion {
         grupo: grupo.get(a.grupoId)?.codigo ?? a.grupoId,
         docente: etiquetaDocente.get(a.docenteId) ?? a.docenteId,
         aula: aula.get(a.aulaId)?.codigo ?? a.aulaId,
-        dia: f ? NOMBRES_DIA[f.diaSemana] : '',
+        dia: f ? nombreDias(f.dias) : '',
         inicio: f?.horaInicio ?? '',
         fin: f?.horaFin ?? '',
       };
@@ -439,12 +449,12 @@ function aplicarAjustes(
     if (ajuste.aula) gen.aulaId = t.aulaPorEtiqueta.get(ajuste.aula)!;
     if (ajuste.dia || ajuste.inicio || ajuste.fin) {
       const actual = franja.get(gen.franjaId)!;
-      const dia = ajuste.dia ?? NOMBRES_DIA[actual.diaSemana];
+      const dia = ajuste.dia ?? nombreDias(actual.dias);
       const inicio =
         ajuste.inicio ?? (ajuste.fin ? undefined : actual.horaInicio);
       const destino = t.franjas.find(
         (f) =>
-          NOMBRES_DIA[f.diaSemana] === dia &&
+          nombreDias(f.dias) === dia &&
           (inicio === undefined || f.horaInicio === inicio) &&
           (ajuste.fin === undefined || f.horaFin === ajuste.fin),
       );

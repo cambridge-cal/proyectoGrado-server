@@ -35,7 +35,7 @@ export function generarInstancia(opciones: OpcionesInstancia): InstanciaMotor {
       const inicio = 7 + b * horas;
       return {
         id: `${dia}-${b + 1}`,
-        dia,
+        dias: [dia],
         horaInicio: `${String(inicio).padStart(2, '0')}:00`,
         horaFin: `${String(inicio + horas).padStart(2, '0')}:00`,
         horas,

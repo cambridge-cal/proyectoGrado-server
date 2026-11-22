@@ -39,6 +39,19 @@ export class CrearGrupoDto {
   @ApiProperty({ enum: Jornada, enumName: 'Jornada' })
   @IsEnum(Jornada, { message: 'La jornada debe ser MAÑANA, TARDE o NOCHE.' })
   jornada: Jornada;
+
+  @ApiPropertyOptional({
+    example: 6,
+    nullable: true,
+    description:
+      'Horas por semana del grupo si difieren de las del curso (modalidad intensiva o regular). null = la del curso.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'La intensidad debe ser un número entero de horas.' })
+  @Min(1)
+  @Max(40)
+  intensidadHoraria?: number | null;
 }
 
 export class ActualizarGrupoDto extends PartialType(CrearGrupoDto) {}

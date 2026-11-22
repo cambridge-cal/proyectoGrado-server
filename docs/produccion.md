@@ -2,6 +2,18 @@
 
 Guía para desplegar el Sistema CAL en producción, cumpliendo RNF-07 (TLS 1.2+), RNF-17 (disponibilidad) y RNF-28 (sin sincronización de esquema).
 
+## Dónde desplegar
+
+El proveedor todavía no está definido. La guía sirve para cualquier infraestructura que cumpla estos requisitos, sea un servidor propio de la academia o un proveedor de nube:
+
+- Ejecuta contenedores Docker (o permite instalar Node.js 24 y PostgreSQL 15).
+- Mantiene el servidor NestJS como un proceso de larga duración. La generación de un horario puede tardar hasta tres minutos (RNF-02), así que no sirven las plataformas de funciones sin servidor con límites cortos de ejecución.
+- Ofrece PostgreSQL 15 con almacenamiento persistente y copias de seguridad.
+- Permite HTTPS con TLS 1.2 o superior, con un dominio propio o el que asigne el proveedor.
+- Sirve la aplicación web (los archivos estáticos de `npm run build` del cliente), en el mismo servidor detrás del proxy o en un servicio de archivos estáticos.
+
+Al elegir, revisa también el costo, la disponibilidad (RNF-17) y en qué país quedan los datos personales (Ley 1581 de 2012).
+
 ## Variables de entorno obligatorias
 
 En producción (`NODE_ENV=production`) el servidor valida al arrancar:
@@ -30,7 +42,7 @@ TypeORM **nunca** sincroniza automáticamente el esquema en producción:
 synchronize: config.get<string>('NODE_ENV') === 'development',
 ```
 
-Las migraciones en producción deben ejecutarse manualmente con TypeORM CLI.
+Con `NODE_ENV=production` el servidor aplica las migraciones pendientes al iniciar (`migrationsRun`). Ver [migraciones.md](migraciones.md).
 
 ## TLS 1.2 o superior (RNF-07)
 
@@ -120,5 +132,5 @@ volumes:
    ```
 4. Configurar TLS (opción 1 o 2 según la infraestructura).
 5. Levantar los servicios: `docker compose -f docker-compose.prod.yml up -d`.
-6. Ejecutar las migraciones de base de datos (cuando se implementen).
+6. Revisar en el log del servidor que las migraciones se aplicaron al iniciar.
 7. Verificar que `/api/salud` responde `{"estado":"ok"}` por HTTPS.

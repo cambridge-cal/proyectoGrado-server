@@ -28,7 +28,7 @@ describe('Docentes y disponibilidades (e2e)', () => {
     estudiante = await usuarioConSesion(app, fuente, marca, Rol.ESTUDIANTE);
     for (const bloque of [27, 28]) {
       const franja = await fuente.getRepository(FranjaHoraria).save({
-        diaSemana: 'SAB' as FranjaHoraria['diaSemana'],
+        dias: ['SAB'] as FranjaHoraria['dias'],
         horaInicio: bloque === 27 ? '05:00' : '05:30',
         horaFin: bloque === 27 ? '05:30' : '06:00',
         bloque,

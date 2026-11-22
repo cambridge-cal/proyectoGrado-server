@@ -24,13 +24,23 @@ describe('generarInstancia (instancia sintética para pruebas)', () => {
       semilla: 1,
     });
     expect(inst.franjas).toHaveLength(6);
-    expect(inst.franjas[0].dia).toBe('LUN');
-    expect(inst.franjas[3].dia).toBe('MAR');
+    expect(inst.franjas[0].dias).toEqual(['LUN']);
+    expect(inst.franjas[3].dias).toEqual(['MAR']);
   });
 
   it('la misma semilla produce la misma instancia', () => {
-    const a = generarInstancia({ docentes: 5, grupos: 3, aulas: 2, semilla: 42 });
-    const b = generarInstancia({ docentes: 5, grupos: 3, aulas: 2, semilla: 42 });
+    const a = generarInstancia({
+      docentes: 5,
+      grupos: 3,
+      aulas: 2,
+      semilla: 42,
+    });
+    const b = generarInstancia({
+      docentes: 5,
+      grupos: 3,
+      aulas: 2,
+      semilla: 42,
+    });
     expect(a.docentes.map((d) => d.id)).toEqual(b.docentes.map((d) => d.id));
     expect(a.docentes.map((d) => d.cargaMaximaHoras)).toEqual(
       b.docentes.map((d) => d.cargaMaximaHoras),
@@ -67,6 +77,8 @@ describe('generarInstancia (instancia sintética para pruebas)', () => {
     expect(new Set(inst.docentes.map((d) => d.id)).size).toBe(20);
     expect(new Set(inst.grupos.map((g) => g.id)).size).toBe(15);
     expect(new Set(inst.aulas.map((a) => a.id)).size).toBe(8);
-    expect(new Set(inst.franjas.map((f) => f.id)).size).toBe(inst.franjas.length);
+    expect(new Set(inst.franjas.map((f) => f.id)).size).toBe(
+      inst.franjas.length,
+    );
   });
 });

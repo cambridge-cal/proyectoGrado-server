@@ -20,10 +20,11 @@ export interface AulaMotor {
 
 export interface FranjaMotor {
   id: string;
-  dia: string;
+  /** Días en que se repite la franja (por ejemplo martes a jueves). */
+  dias: string[];
   horaInicio: string;
   horaFin: string;
-  /** Duración en horas, para la carga docente. */
+  /** Horas por semana de la franja (sesión por número de días), para la carga docente. */
   horas: number;
 }
 
@@ -32,8 +33,13 @@ export interface GrupoMotor {
   idioma: string;
   /** Estudiantes que deben caber en el aula: el cupo máximo del grupo (RF-12). */
   estudiantes: number;
-  /** Número de franjas por semana que necesita el grupo según la intensidad horaria del curso. */
+  /** Número de franjas por semana que necesita el grupo según su intensidad horaria. */
   sesiones: number;
+  /**
+   * Franjas en las que se puede programar el grupo: las de su jornada y, si existen, las que
+   * cubren su intensidad semanal en un solo bloque. Sin definir = cualquier franja.
+   */
+  franjas?: ReadonlySet<string>;
 }
 
 /** Instancia del problema: los datos del período activo (Figura 6.4, paso "Cargar"). */
@@ -60,7 +66,8 @@ export type TipoViolacion =
   | 'CRUCE_AULA'
   | 'CRUCE_GRUPO'
   | 'SIN_DISPONIBILIDAD'
-  | 'CAPACIDAD_AULA';
+  | 'CAPACIDAD_AULA'
+  | 'FRANJA_NO_PERMITIDA';
 
 export interface Violacion {
   tipo: TipoViolacion;

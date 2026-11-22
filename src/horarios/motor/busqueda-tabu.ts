@@ -1,6 +1,6 @@
 import type { Aleatorio } from './aleatorio.js';
 import { aptitudMaxima, evaluar } from './aptitud.js';
-import type { Problema } from './problema.js';
+import { franjasDisponibles, type Problema } from './problema.js';
 import type { Cromosoma, Evaluacion, ParametrosMotor } from './tipos.js';
 
 export interface ResultadoTabu {
@@ -120,13 +120,10 @@ function generarMovimiento(
   if (enConflicto && aleatorio.probabilidad(0.5)) {
     const gen = actual[i];
     const bloque = problema.bloquePorGrupo.get(gen.grupoId)!;
-    const disponibles = [
-      ...(problema.indices.docentes.get(gen.docenteId)?.franjasDisponibles ??
-        []),
-    ];
+    const disponibles = franjasDisponibles(problema, bloque, gen.docenteId);
     const franjaId = disponibles.length
       ? aleatorio.elegir(disponibles)
-      : aleatorio.elegir(problema.franjas);
+      : aleatorio.elegir(bloque.franjas);
     const vecino = copiar(actual);
     vecino[i].franjaId = franjaId;
     vecino[i].aulaId = aleatorio.elegir(bloque.aulas);
