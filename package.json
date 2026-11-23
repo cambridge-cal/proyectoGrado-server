@@ -62,7 +62,7 @@
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",
     "autocannon": "^9.0.0",
-    "oxlint": "^1.93.0",
+    "oxlint": "^1.94.0",
     "prettier": "^3.10.1",
     "source-map-support": "^0.5.21",
     "supertest": "^7.3.2",
